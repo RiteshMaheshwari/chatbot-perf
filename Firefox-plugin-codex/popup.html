@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>ChatGPT TTFW Tracker</title>
+    <link rel="stylesheet" href="popup.css">
+  </head>
+  <body>
+    <main class="app">
+      <header class="header">
+        <div>
+          <p class="eyebrow">ChatGPT UI Timing</p>
+          <h1>TTFW Tracker</h1>
+        </div>
+        <button id="clear-button" class="clear-button" type="button">Clear</button>
+      </header>
+
+      <section class="overlay-panel">
+        <div>
+          <p class="overlay-title">Overlay Window</p>
+          <p id="overlay-status" class="overlay-status">Hidden on page</p>
+        </div>
+        <label class="toggle">
+          <input id="overlay-toggle" type="checkbox">
+          <span class="toggle-track" aria-hidden="true"></span>
+        </label>
+      </section>
+
+      <section class="summary" id="summary">
+        <article class="metric">
+          <span class="metric-label">Samples</span>
+          <strong id="samples-count">0</strong>
+        </article>
+        <article class="metric">
+          <span class="metric-label">Avg TTFW</span>
+          <strong id="avg-ttfw">-</strong>
+        </article>
+        <article class="metric">
+          <span class="metric-label">Avg TTLW</span>
+          <strong id="avg-ttlw">-</strong>
+        </article>
+        <article class="metric">
+          <span class="metric-label">Avg WPS</span>
+          <strong id="avg-wps">-</strong>
+        </article>
+      </section>
+
+      <section class="range-panel">
+        <div>
+          <p class="overlay-title">Time Range</p>
+          <p id="range-status" class="overlay-status">Using all samples</p>
+        </div>
+        <div class="range-buttons" role="group" aria-label="Time range">
+          <button class="range-button is-active" type="button" data-range="10">10</button>
+          <button class="range-button" type="button" data-range="25">25</button>
+          <button class="range-button" type="button" data-range="50">50</button>
+          <button class="range-button" type="button" data-range="all">All</button>
+        </div>
+      </section>
+
+      <section class="charts-section">
+        <article class="chart-card">
+          <div class="chart-header">
+            <div>
+              <p class="metric-label">Chart</p>
+              <h2>TTFW History</h2>
+            </div>
+            <div class="chart-stats">
+              <span id="ttfw-latest" class="chart-stat">Latest -</span>
+              <span id="ttfw-p95" class="chart-stat">P95 -</span>
+            </div>
+          </div>
+          <div id="ttfw-chart" class="chart-canvas empty-chart">Need at least 2 samples.</div>
+        </article>
+
+        <article class="chart-card">
+          <div class="chart-header">
+            <div>
+              <p class="metric-label">Chart</p>
+              <h2>WPS History</h2>
+            </div>
+            <div class="chart-stats">
+              <span id="wps-latest" class="chart-stat">Latest -</span>
+              <span id="wps-p95" class="chart-stat">P95 -</span>
+            </div>
+          </div>
+          <div id="wps-chart" class="chart-canvas empty-chart">Need at least 2 samples.</div>
+        </article>
+      </section>
+
+      <section class="list-section">
+        <div class="list-header">
+          <h2>Recent Runs</h2>
+          <p id="empty-state" class="empty-state">No runs captured yet.</p>
+        </div>
+        <div id="samples-list" class="samples-list"></div>
+      </section>
+    </main>
+
+    <template id="sample-template">
+      <article class="sample">
+        <div class="sample-top">
+          <strong class="sample-title"></strong>
+          <span class="sample-time"></span>
+        </div>
+        <div class="sample-metrics"></div>
+      </article>
+    </template>
+
+    <script src="popup.js"></script>
+  </body>
+</html>
