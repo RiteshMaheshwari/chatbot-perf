@@ -1,0 +1,90 @@
+#ttfw-overlay {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 999999;
+  background: #1a1a2e;
+  color: #e0e0e0;
+  border: 1px solid #3a3a5c;
+  border-radius: 8px;
+  font-family: "SF Mono", "Fira Code", "Consolas", monospace;
+  font-size: 12px;
+  min-width: 220px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+  user-select: none;
+  opacity: 0.92;
+  transition: opacity 0.15s;
+}
+
+#ttfw-overlay:hover {
+  opacity: 1;
+}
+
+#ttfw-header {
+  display: flex;
+  align-items: center;
+  padding: 6px 10px;
+  background: #16213e;
+  border-radius: 8px 8px 0 0;
+  cursor: grab;
+  gap: 6px;
+}
+
+#ttfw-header:active {
+  cursor: grabbing;
+}
+
+#ttfw-title {
+  font-weight: 700;
+  font-size: 11px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: #7fdbca;
+  flex: 1;
+}
+
+#ttfw-status {
+  font-size: 13px;
+  line-height: 1;
+}
+
+#ttfw-minimize {
+  background: none;
+  border: none;
+  color: #888;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 0 2px;
+  line-height: 1;
+}
+
+#ttfw-minimize:hover {
+  color: #fff;
+}
+
+#ttfw-body {
+  padding: 8px 10px;
+}
+
+.ttfw-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 3px 0;
+}
+
+.ttfw-row + .ttfw-row {
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.ttfw-label {
+  color: #999;
+  font-size: 11px;
+}
+
+.ttfw-value {
+  font-weight: 600;
+  color: #c3e88d;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}

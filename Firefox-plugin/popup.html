@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="popup-container">
+    <h1>LLM Speed Monitor</h1>
+
+    <!-- ── Stats grid ── -->
+    <div class="section" id="section-stats">
+      <h2>All time</h2>
+      <div class="stats-grid">
+        <div class="stat-item">
+          <span class="stat-label">Avg TTFW</span>
+          <span class="stat-value" id="stat-ttfw">—</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">Avg WPS</span>
+          <span class="stat-value" id="stat-wps">—</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">P50 WPS</span>
+          <span class="stat-value" id="stat-p50">—</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">P90 WPS</span>
+          <span class="stat-value" id="stat-p90">—</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">P50 TTFW</span>
+          <span class="stat-value" id="stat-ttfw-p50">—</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">P90 TTFW</span>
+          <span class="stat-value" id="stat-ttfw-p90">—</span>
+        </div>
+      </div>
+      <div class="entry-count" id="entry-count">0 measurements</div>
+    </div>
+
+    <!-- ── Charts ── -->
+    <div class="section" id="section-charts">
+      <h2>Last 30 responses</h2>
+      <div class="chart-block">
+        <div class="chart-label">Words / second</div>
+        <canvas id="chart-wps" width="320" height="72"></canvas>
+      </div>
+      <div class="chart-block">
+        <div class="chart-label">Time to First Word (s)</div>
+        <canvas id="chart-ttfw" width="320" height="72"></canvas>
+      </div>
+    </div>
+
+    <!-- ── Per-model breakdown ── -->
+    <div class="section" id="section-models">
+      <h2>By model</h2>
+      <div id="model-list"></div>
+      <div id="model-empty" class="empty-msg" style="display:none">No data yet.</div>
+    </div>
+
+    <!-- ── History ── -->
+    <div class="section">
+      <div class="section-header">
+        <h2>History</h2>
+        <button id="clear-btn">Clear all</button>
+      </div>
+      <div id="history-list"></div>
+      <div id="empty-msg" class="empty-msg">No measurements yet. Send a message to start.</div>
+    </div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

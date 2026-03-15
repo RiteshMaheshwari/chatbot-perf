@@ -1,0 +1,35 @@
+{
+  "manifest_version": 2,
+  "name": "LLM Speed Monitor",
+  "version": "2.0.0",
+  "description": "Measures Time to First Word, Words/sec and more for ChatGPT and Claude responses.",
+  "permissions": [
+    "storage"
+  ],
+  "icons": {
+    "48": "icons/icon-48.png",
+    "96": "icons/icon-96.png"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "*://chatgpt.com/*",
+        "*://claude.ai/*"
+      ],
+      "js": ["content.js"],
+      "css": ["content.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "background": {
+    "scripts": ["background.js"]
+  },
+  "browser_action": {
+    "default_icon": {
+      "48": "icons/icon-48.png",
+      "96": "icons/icon-96.png"
+    },
+    "default_title": "LLM Speed Monitor",
+    "default_popup": "popup.html"
+  }
+}
