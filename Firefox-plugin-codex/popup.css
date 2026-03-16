@@ -48,6 +48,12 @@ h2 {
   font-size: 14px;
 }
 
+.header-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.ghost-button,
 .clear-button {
   appearance: none;
   background: rgba(21, 32, 51, 0.06);
@@ -59,6 +65,11 @@ h2 {
   font-size: 12px;
   font-weight: 700;
   padding: 8px 12px;
+}
+
+.ghost-button {
+  background: rgba(31, 147, 255, 0.1);
+  color: #0e5fad;
 }
 
 .overlay-panel {
@@ -203,6 +214,56 @@ h2 {
   margin-bottom: 16px;
 }
 
+.models-section,
+.list-section {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.model-list {
+  display: grid;
+  gap: 10px;
+}
+
+.model-row {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(70, 97, 127, 0.12);
+  border-radius: 14px;
+  box-shadow: 0 10px 28px rgba(21, 32, 51, 0.08);
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+}
+
+.model-top,
+.model-stats {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: space-between;
+}
+
+.model-name {
+  color: #152033;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.model-count {
+  color: #5f738b;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.model-stats {
+  color: #29415d;
+  font-size: 11px;
+  justify-content: flex-start;
+}
+
 .chart-card {
   padding: 12px;
 }
@@ -246,8 +307,18 @@ h2 {
 
 .chart-svg {
   display: block;
-  height: 132px;
+  height: 112px;
   width: 100%;
+}
+
+.chart-axis {
+  color: #5f738b;
+  display: flex;
+  font-size: 10px;
+  font-weight: 700;
+  justify-content: space-between;
+  letter-spacing: 0.03em;
+  margin-top: 4px;
 }
 
 .chart-grid-line {
@@ -269,17 +340,6 @@ h2 {
 
 .chart-point {
   fill: #1f93ff;
-}
-
-.chart-label {
-  fill: #5f738b;
-  font-size: 10px;
-  font-weight: 700;
-}
-
-.list-section {
-  display: grid;
-  gap: 10px;
 }
 
 .empty-state {

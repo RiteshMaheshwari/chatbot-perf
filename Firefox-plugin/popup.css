@@ -95,6 +95,31 @@ h2 {
   text-align: right;
 }
 
+/* ── Range filter buttons ── */
+.range-filters {
+  display: flex;
+  gap: 3px;
+}
+
+.range-btn {
+  background: #1a1a2e;
+  border: 1px solid #3a3a5c;
+  color: #666;
+  font-size: 10px;
+  padding: 2px 7px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.range-btn:hover { background: #2a2a4a; color: #ccc; }
+
+.range-btn.is-active {
+  background: #7fdbca22;
+  border-color: #7fdbca55;
+  color: #7fdbca;
+}
+
 /* ── Charts ── */
 .chart-block { margin-bottom: 10px; }
 
@@ -191,6 +216,17 @@ canvas {
 
 .metric { font-size: 11px; color: #888; }
 .metric b { color: #e0e0e0; font-weight: 600; }
+
+/* ── Prompt preview in history ── */
+.entry-preview {
+  font-size: 10px;
+  color: #666;
+  font-style: italic;
+  margin-bottom: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 
 .empty-msg {
   text-align: center;

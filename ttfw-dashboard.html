@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TTFW &amp; WPS Dashboard</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #0f1117;
+      color: #e2e8f0;
+      min-height: 100vh;
+      padding: 32px 24px;
+    }
+
+    /* ── Header ── */
+    .header-row {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 24px;
+      flex-wrap: wrap;
+      margin-bottom: 32px;
+    }
+    .header-left h1 {
+      font-size: 1.75rem;
+      font-weight: 700;
+      color: #f8fafc;
+      margin-bottom: 4px;
+    }
+    .header-left .subtitle {
+      color: #64748b;
+      font-size: 0.9rem;
+    }
+
+    /* ── File loader ── */
+    .loader-box {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 8px;
+    }
+    .load-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: #1e2130;
+      border: 1.5px dashed #3b4563;
+      color: #94a3b8;
+      border-radius: 10px;
+      padding: 10px 18px;
+      font-size: 0.88rem;
+      cursor: pointer;
+      transition: border-color 0.2s, color 0.2s, background 0.2s;
+    }
+    .load-btn:hover {
+      border-color: #6366f1;
+      color: #a5b4fc;
+      background: #1a1c2e;
+    }
+    .load-btn svg { flex-shrink: 0; }
+    #file-input { display: none; }
+    .file-status {
+      font-size: 0.78rem;
+      color: #475569;
+    }
+    .file-status.loaded { color: #22c55e; }
+    .file-status.error  { color: #f87171; }
+
+    /* ── Drag-drop overlay ── */
+    body.drag-over::after {
+      content: 'Drop JSON file to load';
+      position: fixed; inset: 0;
+      background: rgba(99,102,241,0.15);
+      border: 3px dashed #6366f1;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.5rem; font-weight: 700; color: #a5b4fc;
+      z-index: 999;
+      pointer-events: none;
+    }
+
+    /* ── Stat cards ── */
+    .stat-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 16px;
+      margin-bottom: 36px;
+    }
+    .stat-card {
+      background: #1e2130;
+      border: 1px solid #2d3348;
+      border-radius: 12px;
+      padding: 18px 20px;
+    }
+    .stat-card .label {
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #64748b;
+      margin-bottom: 6px;
+    }
+    .stat-card .value {
+      font-size: 1.6rem;
+      font-weight: 700;
+      line-height: 1;
+    }
+    .stat-card .sub {
+      font-size: 0.78rem;
+      color: #64748b;
+      margin-top: 4px;
+    }
+    .claude-color     { color: #f97316; }
+    .chatgpt-color    { color: #22c55e; }
+    .perplexity-color { color: #a78bfa; }
+
+    /* ── Section ── */
+    .section-title {
+      font-size: 1rem;
+      font-weight: 600;
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      margin-bottom: 16px;
+    }
+
+    /* ── Chart grid ── */
+    .chart-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+      gap: 20px;
+      margin-bottom: 36px;
+    }
+    .chart-card {
+      background: #1e2130;
+      border: 1px solid #2d3348;
+      border-radius: 14px;
+      padding: 24px;
+    }
+    .chart-card h3 {
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: #cbd5e1;
+      margin-bottom: 18px;
+    }
+    .chart-wrapper        { position: relative; height: 260px; }
+
+    .chart-full {
+      background: #1e2130;
+      border: 1px solid #2d3348;
+      border-radius: 14px;
+      padding: 24px;
+      margin-bottom: 36px;
+    }
+    .chart-full h3 {
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: #cbd5e1;
+      margin-bottom: 18px;
+    }
+
+    /* ── Stats table ── */
+    .table-card {
+      background: #1e2130;
+      border: 1px solid #2d3348;
+      border-radius: 14px;
+      padding: 24px;
+      overflow-x: auto;
+      margin-bottom: 36px;
+    }
+    .table-card h3 {
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: #cbd5e1;
+      margin-bottom: 18px;
+    }
+    table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+    th {
+      text-align: left;
+      padding: 10px 14px;
+      border-bottom: 1px solid #2d3348;
+      color: #64748b;
+      font-weight: 500;
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+    td {
+      padding: 11px 14px;
+      border-bottom: 1px solid #1a1f2e;
+      color: #cbd5e1;
+    }
+    tr:last-child td { border-bottom: none; }
+
+    .site-badge {
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+    .badge-claude     { background: #431407; color: #f97316; }
+    .badge-chatgpt    { background: #052e16; color: #22c55e; }
+    .badge-perplexity { background: #2e1065; color: #a78bfa; }
+
+    .winner { color: #22c55e; font-weight: 600; }
+    .loser  { color: #f87171; }
+    .mid    { color: #fbbf24; }
+
+    .legend {
+      display: flex;
+      gap: 20px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.82rem;
+      color: #94a3b8;
+    }
+    .legend-dot { width: 12px; height: 12px; border-radius: 50%; }
+
+    /* ── Empty state ── */
+    .empty {
+      text-align: center;
+      color: #475569;
+      padding: 60px 20px;
+      font-size: 1rem;
+    }
+  </style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="header-row">
+  <div class="header-left">
+    <h1>TTFW &amp; Streaming Performance</h1>
+    <p class="subtitle" id="subtitle">Loading default data…</p>
+  </div>
+  <div class="loader-box">
+    <label class="load-btn" for="file-input">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+        <polyline points="17 8 12 3 7 8"/>
+        <line x1="12" y1="3" x2="12" y2="15"/>
+      </svg>
+      Load new JSON
+    </label>
+    <input type="file" id="file-input" accept=".json" />
+    <span class="file-status" id="file-status">or drag &amp; drop a JSON file anywhere</span>
+  </div>
+</div>
+
+<!-- Stat cards -->
+<div class="stat-grid" id="stat-cards"></div>
+
+<!-- Charts row 1 -->
+<p class="section-title">Per-Site Averages</p>
+<div class="chart-grid">
+  <div class="chart-card">
+    <h3>⏱ Avg TTFW (ms) — lower is better</h3>
+    <div class="chart-wrapper"><canvas id="ttfwBar"></canvas></div>
+  </div>
+  <div class="chart-card">
+    <h3>⚡ Avg Streaming WPS — higher is better</h3>
+    <div class="chart-wrapper"><canvas id="wpsBar"></canvas></div>
+  </div>
+  <div class="chart-card">
+    <h3>🔄 Avg End-to-End WPS — higher is better</h3>
+    <div class="chart-wrapper"><canvas id="e2eBar"></canvas></div>
+  </div>
+  <div class="chart-card">
+    <h3>📊 TTFW Distribution (min / median / avg / max)</h3>
+    <div class="chart-wrapper"><canvas id="ttfwDist"></canvas></div>
+  </div>
+</div>
+
+<!-- Scatter -->
+<p class="section-title">All Samples</p>
+<div class="chart-full">
+  <h3>🔵 TTFW vs Streaming WPS — dot size = word count</h3>
+  <div class="legend" id="scatter-legend"></div>
+  <div style="position:relative;height:340px"><canvas id="scatter"></canvas></div>
+</div>
+
+<!-- Timeline -->
+<div class="chart-full">
+  <h3>🕐 TTFW Over Time (chronological order)</h3>
+  <div style="position:relative;height:300px"><canvas id="timeline"></canvas></div>
+</div>
+
+<!-- Stats table -->
+<p class="section-title">Detailed Stats by Site</p>
+<div class="table-card">
+  <h3>Summary statistics</h3>
+  <table id="stats-table"></table>
+</div>
+
+<script>
+// ─── DEFAULT DATA (bundled as fallback) ──────────────────────────────────────
+const DEFAULT_DATA = [
+  {"site":"claude","model":"claude","startedAt":"2026-03-16T22:52:47.934Z","inputWords":5,"ttfwMs":1405,"ttlwMs":6237,"streamingMs":4832,"wordCount":160,"wordsPerSecond":33.11,"endToEndWordsPerSecond":25.65},
+  {"site":"chatgpt","model":"gpt-5-3","startedAt":"2026-03-16T22:48:54.422Z","inputWords":2,"ttfwMs":2125,"ttlwMs":2589,"streamingMs":464,"wordCount":18,"wordsPerSecond":38.79,"endToEndWordsPerSecond":6.95},
+  {"site":"chatgpt","model":"gpt-5-3","startedAt":"2026-03-16T22:48:33.272Z","inputWords":1,"ttfwMs":1868,"ttlwMs":2491,"streamingMs":623,"wordCount":6,"wordsPerSecond":9.63,"endToEndWordsPerSecond":2.41},
+  {"site":"chatgpt","model":"gpt-5-3","startedAt":"2026-03-16T22:35:12.233Z","inputWords":3,"ttfwMs":2193,"ttlwMs":6928,"streamingMs":4735,"wordCount":44,"wordsPerSecond":9.29,"endToEndWordsPerSecond":6.35},
+  {"site":"chatgpt","model":"gpt-5-3","startedAt":"2026-03-16T22:35:00.263Z","inputWords":3,"ttfwMs":1833,"ttlwMs":2014,"streamingMs":181,"wordCount":18,"wordsPerSecond":99.45,"endToEndWordsPerSecond":8.94},
+  {"site":"chatgpt","model":"gpt-5-3","startedAt":"2026-03-16T22:34:46.689Z","inputWords":1,"ttfwMs":1706,"ttlwMs":1844,"streamingMs":138,"wordCount":3,"wordsPerSecond":21.74,"endToEndWordsPerSecond":1.63},
+  {"site":"chatgpt","model":"gpt-5-3","startedAt":"2026-03-16T22:33:54.615Z","inputWords":11,"ttfwMs":2104,"ttlwMs":11882,"streamingMs":9778,"wordCount":254,"wordsPerSecond":25.98,"endToEndWordsPerSecond":21.38},
+  {"site":"chatgpt","model":"gpt-5-3","startedAt":"2026-03-16T22:33:40.910Z","inputWords":1,"ttfwMs":3211,"ttlwMs":4377,"streamingMs":1166,"wordCount":32,"wordsPerSecond":27.44,"endToEndWordsPerSecond":7.31},
+  {"site":"chatgpt","model":"gpt-5-3","startedAt":"2026-03-16T22:33:28.505Z","inputWords":3,"ttfwMs":2125,"ttlwMs":2595,"streamingMs":470,"wordCount":20,"wordsPerSecond":42.55,"endToEndWordsPerSecond":7.71},
+  {"site":"chatgpt","model":"gpt-5-3","startedAt":"2026-03-16T22:33:11.212Z","inputWords":1,"ttfwMs":2485,"ttlwMs":2609,"streamingMs":124,"wordCount":7,"wordsPerSecond":56.45,"endToEndWordsPerSecond":2.68},
+  {"site":"chatgpt","model":"gpt-5-3","startedAt":"2026-03-16T22:26:47.325Z","inputWords":3,"ttfwMs":1726,"ttlwMs":2964,"streamingMs":1238,"wordCount":21,"wordsPerSecond":16.96,"endToEndWordsPerSecond":7.09},
+  {"site":"chatgpt","model":"gpt-5-3","startedAt":"2026-03-16T22:26:29.750Z","inputWords":1,"ttfwMs":1485,"ttlwMs":1640,"streamingMs":155,"wordCount":8,"wordsPerSecond":51.61,"endToEndWordsPerSecond":4.88},
+  {"site":"chatgpt","model":"gpt-5-3","startedAt":"2026-03-16T22:22:54.642Z","inputWords":1,"ttfwMs":2780,"ttlwMs":6166,"streamingMs":3386,"wordCount":68,"wordsPerSecond":20.08,"endToEndWordsPerSecond":11.03},
+  {"site":"chatgpt","model":"gpt-5-3","startedAt":"2026-03-16T22:22:09.191Z","inputWords":1,"ttfwMs":3379,"ttlwMs":3540,"streamingMs":161,"wordCount":4,"wordsPerSecond":24.84,"endToEndWordsPerSecond":1.13},
+  {"site":"claude","model":"claude","startedAt":"2026-03-16T22:21:38.218Z","inputWords":1,"ttfwMs":992,"ttlwMs":3203,"streamingMs":2211,"wordCount":32,"wordsPerSecond":14.47,"endToEndWordsPerSecond":9.99},
+  {"site":"chatgpt","model":"gpt-5-3","startedAt":"2026-03-16T22:15:29.241Z","inputWords":1,"ttfwMs":1563,"ttlwMs":1926,"streamingMs":363,"wordCount":8,"wordsPerSecond":22.04,"endToEndWordsPerSecond":4.15},
+  {"site":"chatgpt","model":"gpt-5-3","startedAt":"2026-03-16T22:14:58.747Z","inputWords":2,"ttfwMs":1393,"ttlwMs":4454,"streamingMs":3061,"wordCount":81,"wordsPerSecond":26.46,"endToEndWordsPerSecond":18.19},
+  {"site":"chatgpt","model":"gpt-5-3","startedAt":"2026-03-16T22:14:17.967Z","inputWords":2,"ttfwMs":1505,"ttlwMs":2696,"streamingMs":1191,"wordCount":41,"wordsPerSecond":34.42,"endToEndWordsPerSecond":15.21},
+  {"site":"perplexity","model":"perplexity","startedAt":"2026-03-16T22:13:11.752Z","inputWords":6,"ttfwMs":4538,"ttlwMs":8541,"streamingMs":4003,"wordCount":95,"wordsPerSecond":23.73,"endToEndWordsPerSecond":11.12},
+  {"site":"claude","model":"claude","startedAt":"2026-03-16T22:03:34.109Z","inputWords":1,"ttfwMs":7081,"ttlwMs":8668,"streamingMs":1587,"wordCount":15,"wordsPerSecond":9.45,"endToEndWordsPerSecond":1.73},
+  {"site":"perplexity","model":"unknown","startedAt":"2026-03-16T21:59:09.205Z","inputWords":6,"ttfwMs":3937,"ttlwMs":7091,"streamingMs":3154,"wordCount":29,"wordsPerSecond":9.19,"endToEndWordsPerSecond":4.09},
+  {"site":"perplexity","model":"unknown","startedAt":"2026-03-16T21:58:53.287Z","inputWords":1,"ttfwMs":1334,"ttlwMs":2839,"streamingMs":1505,"wordCount":8,"wordsPerSecond":5.32,"endToEndWordsPerSecond":2.82},
+  {"site":"chatgpt","model":"gpt-5-3","startedAt":"2026-03-16T21:57:24.368Z","inputWords":1,"ttfwMs":4393,"ttlwMs":4705,"streamingMs":312,"wordCount":5,"wordsPerSecond":16.03,"endToEndWordsPerSecond":1.06},
+  {"site":"chatgpt","model":"gpt-5-3","startedAt":"2026-03-16T21:55:32.018Z","inputWords":7,"ttfwMs":1296,"ttlwMs":11014,"streamingMs":9718,"wordCount":253,"wordsPerSecond":26.03,"endToEndWordsPerSecond":22.97},
+  {"site":"perplexity","model":"unknown","startedAt":"2026-03-16T21:53:46.116Z","inputWords":3,"ttfwMs":3790,"ttlwMs":7643,"streamingMs":3853,"wordCount":31,"wordsPerSecond":8.05,"endToEndWordsPerSecond":4.06},
+];
+
+// ─── PALETTE ─────────────────────────────────────────────────────────────────
+const PALETTE = {
+  claude:     { bg: 'rgba(249,115,22,0.85)',  border: '#f97316', light: 'rgba(249,115,22,0.15)' },
+  chatgpt:    { bg: 'rgba(34,197,94,0.85)',   border: '#22c55e', light: 'rgba(34,197,94,0.15)'  },
+  perplexity: { bg: 'rgba(167,139,250,0.85)', border: '#a78bfa', light: 'rgba(167,139,250,0.15)' },
+};
+// For unknown/new sites encountered in loaded data
+const EXTRA_COLORS = [
+  { bg:'rgba(56,189,248,0.85)',  border:'#38bdf8', light:'rgba(56,189,248,0.15)'  },
+  { bg:'rgba(251,191,36,0.85)',  border:'#fbbf24', light:'rgba(251,191,36,0.15)'  },
+  { bg:'rgba(244,114,182,0.85)', border:'#f472b6', light:'rgba(244,114,182,0.15)' },
+];
+const colorFor = (() => {
+  const cache = {...PALETTE};
+  let idx = 0;
+  return site => {
+    if (!cache[site]) cache[site] = EXTRA_COLORS[idx++ % EXTRA_COLORS.length];
+    return cache[site];
+  };
+})();
+
+// ─── CHART REGISTRY ──────────────────────────────────────────────────────────
+const charts = {};
+function destroyAll() { Object.values(charts).forEach(c => c?.destroy()); }
+
+// ─── MATH HELPERS ─────────────────────────────────────────────────────────────
+const avg    = arr => arr.length ? arr.reduce((a,b)=>a+b,0)/arr.length : 0;
+const med    = arr => { const s=[...arr].sort((a,b)=>a-b), m=Math.floor(s.length/2); return s.length%2?s[m]:(s[m-1]+s[m])/2; };
+const stddev = arr => { const a=avg(arr); return Math.sqrt(arr.map(x=>(x-a)**2).reduce((a,b)=>a+b,0)/arr.length); };
+const r1     = v   => Math.round(v*10)/10;
+
+Chart.defaults.color       = '#64748b';
+Chart.defaults.borderColor = '#1f2937';
+const gridColor = '#1f2937';
+
+function barDefaults(unit) {
+  return {
+    responsive: true, maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      tooltip: { callbacks: { label: ctx => ` ${r1(ctx.parsed.y)} ${unit}` } }
+    },
+    scales: {
+      x: { grid:{color:gridColor}, ticks:{color:'#94a3b8',font:{size:12}} },
+      y: { grid:{color:gridColor}, ticks:{color:'#94a3b8',font:{size:11}} }
+    }
+  };
+}
+
+// ─── MAIN RENDER ─────────────────────────────────────────────────────────────
+function render(raw) {
+  destroyAll();
+
+  // Detect sites present in data
+  const SITES = [...new Set(raw.map(d => d.site))];
+
+  // Per-site stats
+  const stats = {};
+  SITES.forEach(s => {
+    const d = raw.filter(r => r.site === s);
+    const ttfw = d.map(x=>x.ttfwMs);
+    const wps  = d.map(x=>x.wordsPerSecond);
+    const e2e  = d.map(x=>x.endToEndWordsPerSecond);
+    stats[s] = {
+      n:    d.length,
+      ttfw: { avg:avg(ttfw), med:med(ttfw), std:stddev(ttfw), min:Math.min(...ttfw), max:Math.max(...ttfw) },
+      wps:  { avg:avg(wps),  med:med(wps)  },
+      e2e:  { avg:avg(e2e),  med:med(e2e)  },
+    };
+  });
+
+  // ── Subtitle
+  const dates = raw.map(d=>d.startedAt).filter(Boolean).sort();
+  if (dates.length) {
+    const fmt = d => new Date(d).toLocaleString(undefined,{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
+    document.getElementById('subtitle').textContent =
+      dates.length > 1
+        ? `${raw.length} samples · ${fmt(dates[0])} – ${fmt(dates[dates.length-1])}`
+        : `${raw.length} sample · ${fmt(dates[0])}`;
+  } else {
+    document.getElementById('subtitle').textContent = `${raw.length} samples`;
+  }
+
+  // ── Stat cards
+  const ttfwAvgs = SITES.map(s=>stats[s].ttfw.avg);
+  const fastestSite = SITES[ttfwAvgs.indexOf(Math.min(...ttfwAvgs))];
+  const wpsAvgs  = SITES.map(s=>stats[s].wps.avg);
+  const fastestWpsSite = SITES[wpsAvgs.indexOf(Math.max(...wpsAvgs))];
+
+  const cardData = [
+    { label:'Total Samples', value: raw.length, sub:'all sites combined', cls:'' },
+    { label:'Fastest Avg TTFW', value:`${r1(Math.min(...ttfwAvgs))}ms`,
+      sub:`${fastestSite} · avg`, cls:`${fastestSite}-color` },
+    { label:'Best Avg WPS', value:`${r1(Math.max(...wpsAvgs))} w/s`,
+      sub:`${fastestWpsSite} · streaming`, cls:`${fastestWpsSite}-color` },
+    ...SITES.map(s => ({
+      label:`${s.charAt(0).toUpperCase()+s.slice(1)} (n=${stats[s].n})`,
+      value:`${r1(stats[s].ttfw.avg)}ms`,
+      sub:`avg TTFW · ${r1(stats[s].wps.avg)} w/s`,
+      cls:`${s}-color`
+    }))
+  ];
+  const grid = document.getElementById('stat-cards');
+  grid.innerHTML = cardData.map(c =>
+    `<div class="stat-card">
+      <div class="label">${c.label}</div>
+      <div class="value ${c.cls}">${c.value}</div>
+      <div class="sub">${c.sub}</div>
+    </div>`
+  ).join('');
+
+  // helper for bar datasets
+  function siteBar(field) {
+    return {
+      data: SITES.map(s => r1(stats[s][field].avg)),
+      backgroundColor: SITES.map(s => colorFor(s).bg),
+      borderColor:     SITES.map(s => colorFor(s).border),
+      borderWidth: 1.5, borderRadius: 6,
+    };
+  }
+
+  const labels = SITES.map(s => s.charAt(0).toUpperCase()+s.slice(1));
+
+  // ── TTFW bar
+  charts.ttfwBar = new Chart(document.getElementById('ttfwBar'), {
+    type:'bar',
+    data:{ labels, datasets:[siteBar('ttfw')] },
+    options: barDefaults('ms'),
+  });
+
+  // ── WPS bar
+  charts.wpsBar = new Chart(document.getElementById('wpsBar'), {
+    type:'bar',
+    data:{ labels, datasets:[siteBar('wps')] },
+    options: barDefaults('w/s'),
+  });
+
+  // ── E2E bar
+  charts.e2eBar = new Chart(document.getElementById('e2eBar'), {
+    type:'bar',
+    data:{ labels, datasets:[siteBar('e2e')] },
+    options: barDefaults('w/s'),
+  });
+
+  // ── TTFW distribution (grouped bar: min / med / avg / max)
+  charts.ttfwDist = new Chart(document.getElementById('ttfwDist'), {
+    type:'bar',
+    data:{
+      labels:['Min','Median','Avg','Max'],
+      datasets: SITES.map(s => ({
+        label: s.charAt(0).toUpperCase()+s.slice(1),
+        data: [r1(stats[s].ttfw.min), r1(stats[s].ttfw.med), r1(stats[s].ttfw.avg), r1(stats[s].ttfw.max)],
+        backgroundColor: colorFor(s).light,
+        borderColor: colorFor(s).border,
+        borderWidth:2, borderRadius:5,
+      }))
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{
+        legend:{ labels:{color:'#94a3b8', font:{size:11}} },
+        tooltip:{ callbacks:{ label: ctx=>`${ctx.dataset.label}: ${ctx.parsed.y} ms` } }
+      },
+      scales:{
+        x:{ grid:{color:gridColor}, ticks:{color:'#94a3b8'} },
+        y:{ grid:{color:gridColor}, ticks:{color:'#94a3b8',font:{size:11}},
+            title:{display:true, text:'ms', color:'#64748b'} }
+      }
+    }
+  });
+
+  // ── Scatter legend
+  const legendEl = document.getElementById('scatter-legend');
+  legendEl.innerHTML = SITES.map(s =>
+    `<div class="legend-item">
+      <div class="legend-dot" style="background:${colorFor(s).border}"></div>
+      ${s.charAt(0).toUpperCase()+s.slice(1)}
+    </div>`
+  ).join('');
+
+  // ── Scatter
+  charts.scatter = new Chart(document.getElementById('scatter'), {
+    type:'scatter',
+    data:{
+      datasets: SITES.map(s => ({
+        label: s.charAt(0).toUpperCase()+s.slice(1),
+        data: raw.filter(d=>d.site===s).map(d=>({ x:d.ttfwMs, y:d.wordsPerSecond, wc:d.wordCount })),
+        backgroundColor: colorFor(s).bg,
+        borderColor: colorFor(s).border,
+        borderWidth:1.5,
+        pointRadius: ctx => Math.max(5, Math.min(18, Math.sqrt(ctx?.raw?.wc ?? 20)*0.9)),
+        pointHoverRadius: 10,
+      }))
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{
+        legend:{ labels:{color:'#94a3b8',font:{size:12}} },
+        tooltip:{ callbacks:{ label: ctx=>[` TTFW: ${ctx.raw.x} ms`,` WPS: ${ctx.raw.y} w/s`,` Words: ${ctx.raw.wc}`] } }
+      },
+      scales:{
+        x:{ grid:{color:gridColor}, title:{display:true,text:'TTFW (ms)',color:'#64748b'}, ticks:{color:'#94a3b8'} },
+        y:{ grid:{color:gridColor}, title:{display:true,text:'Streaming WPS',color:'#64748b'}, ticks:{color:'#94a3b8'} }
+      }
+    }
+  });
+
+  // ── Timeline
+  const sorted = [...raw].filter(d=>d.startedAt).sort((a,b)=>new Date(a.startedAt)-new Date(b.startedAt));
+  const timeLabels = sorted.map(d => {
+    const t = new Date(d.startedAt);
+    return `${t.getHours()}:${String(t.getMinutes()).padStart(2,'0')}`;
+  });
+
+  charts.timeline = new Chart(document.getElementById('timeline'), {
+    type:'line',
+    data:{
+      labels: timeLabels,
+      datasets: SITES.map(s => ({
+        label: s.charAt(0).toUpperCase()+s.slice(1),
+        data: sorted.map(d => d.site===s ? d.ttfwMs : null),
+        borderColor: colorFor(s).border,
+        backgroundColor: colorFor(s).light,
+        pointBackgroundColor: colorFor(s).border,
+        pointRadius:5, pointHoverRadius:8,
+        spanGaps:false, tension:0.3, borderWidth:2,
+      }))
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{
+        legend:{ labels:{color:'#94a3b8',font:{size:12}} },
+        tooltip:{ callbacks:{ label: ctx=>`${ctx.dataset.label}: ${ctx.parsed.y} ms` } }
+      },
+      scales:{
+        x:{ grid:{color:gridColor}, ticks:{color:'#94a3b8',maxRotation:45} },
+        y:{ grid:{color:gridColor}, title:{display:true,text:'TTFW (ms)',color:'#64748b'}, ticks:{color:'#94a3b8'} }
+      }
+    }
+  });
+
+  // ── Stats table
+  function rank(arr, idx, higherBetter=false) {
+    const s = [...arr].map((v,i)=>({v,i})).sort((a,b)=> higherBetter?b.v-a.v:a.v-b.v);
+    const pos = s.findIndex(x=>x.i===idx);
+    return pos===0?'winner': pos===arr.length-1?'loser':'mid';
+  }
+  const ttfwA = SITES.map(s=>stats[s].ttfw.avg);
+  const wpsA  = SITES.map(s=>stats[s].wps.avg);
+  const e2eA  = SITES.map(s=>stats[s].e2e.avg);
+
+  document.getElementById('stats-table').innerHTML = `
+    <thead><tr>
+      <th>Site</th><th>Model(s)</th><th>n</th>
+      <th>TTFW avg</th><th>TTFW med</th><th>TTFW σ</th><th>TTFW min</th><th>TTFW max</th>
+      <th>WPS avg</th><th>WPS med</th><th>E2E avg</th>
+    </tr></thead>
+    <tbody>
+    ${SITES.map((s,i) => {
+      const st = stats[s];
+      const models = [...new Set(raw.filter(d=>d.site===s).map(d=>d.model))].join(', ');
+      const badgeCls = PALETTE[s] ? `badge-${s}` : '';
+      return `<tr>
+        <td><span class="site-badge ${badgeCls}" style="${!PALETTE[s]?`background:${colorFor(s).light};color:${colorFor(s).border}`:''}">
+          ${s}</span></td>
+        <td style="color:#64748b;font-size:0.82rem">${models}</td>
+        <td>${st.n}</td>
+        <td class="${rank(ttfwA,i,false)}">${r1(st.ttfw.avg)} ms</td>
+        <td>${r1(st.ttfw.med)} ms</td>
+        <td style="color:#64748b">${r1(st.ttfw.std)} ms</td>
+        <td style="color:#64748b">${r1(st.ttfw.min)} ms</td>
+        <td style="color:#64748b">${r1(st.ttfw.max)} ms</td>
+        <td class="${rank(wpsA,i,true)}">${r1(st.wps.avg)} w/s</td>
+        <td>${r1(st.wps.med)} w/s</td>
+        <td class="${rank(e2eA,i,true)}">${r1(st.e2e.avg)} w/s</td>
+      </tr>`;
+    }).join('')}
+    </tbody>`;
+}
+
+// ─── FILE LOADING ─────────────────────────────────────────────────────────────
+function loadJSON(file) {
+  const status = document.getElementById('file-status');
+  status.textContent = `Reading ${file.name}…`;
+  status.className = 'file-status';
+
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (!Array.isArray(data) || data.length === 0) throw new Error('Expected a non-empty JSON array');
+      const required = ['ttfwMs','wordsPerSecond'];
+      const missing = required.filter(k => !data.some(d => k in d));
+      if (missing.length) throw new Error(`Missing fields: ${missing.join(', ')}`);
+      status.textContent = `✓ ${file.name} · ${data.length} samples`;
+      status.className = 'file-status loaded';
+      render(data);
+    } catch(err) {
+      status.textContent = `✗ ${err.message}`;
+      status.className = 'file-status error';
+    }
+  };
+  reader.onerror = () => {
+    status.textContent = '✗ Could not read file';
+    status.className = 'file-status error';
+  };
+  reader.readAsText(file);
+}
+
+document.getElementById('file-input').addEventListener('change', e => {
+  if (e.target.files[0]) loadJSON(e.target.files[0]);
+});
+
+// Drag & drop on entire page
+document.body.addEventListener('dragover', e => { e.preventDefault(); document.body.classList.add('drag-over'); });
+document.body.addEventListener('dragleave', () => document.body.classList.remove('drag-over'));
+document.body.addEventListener('drop', e => {
+  e.preventDefault();
+  document.body.classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (file) loadJSON(file);
+});
+
+// ─── INITIAL RENDER ───────────────────────────────────────────────────────────
+render(DEFAULT_DATA);
+document.getElementById('file-status').textContent = 'or drag & drop a JSON file anywhere';
+</script>
+</body>
+</html>

@@ -1,20 +1,26 @@
 {
   "manifest_version": 3,
-  "name": "ChatGPT TTFW Tracker",
+  "name": "LLM TTFW Tracker",
   "version": "0.1.0",
-  "description": "Measures ChatGPT time to first word, time to last word, and streaming speed in the ChatGPT UI.",
+  "description": "Measures ChatGPT, Claude, and Perplexity time to first word, time to last word, and streaming speed in the UI.",
   "permissions": [
     "storage"
   ],
   "host_permissions": [
     "https://chatgpt.com/*",
-    "https://chat.openai.com/*"
+    "https://chat.openai.com/*",
+    "https://claude.ai/*",
+    "https://perplexity.ai/*",
+    "https://www.perplexity.ai/*"
   ],
   "content_scripts": [
     {
       "matches": [
         "https://chatgpt.com/*",
-        "https://chat.openai.com/*"
+        "https://chat.openai.com/*",
+        "https://claude.ai/*",
+        "https://perplexity.ai/*",
+        "https://www.perplexity.ai/*"
       ],
       "js": [
         "content.js"
@@ -23,7 +29,7 @@
     }
   ],
   "action": {
-    "default_title": "ChatGPT TTFW Tracker",
+    "default_title": "LLM TTFW Tracker",
     "default_popup": "popup.html"
   },
   "browser_specific_settings": {

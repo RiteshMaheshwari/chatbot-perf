@@ -1,31 +1,61 @@
+// ── Direct storage (no background script) ──────────────────────────
+let selectedRange = "all";
+
 document.addEventListener("DOMContentLoaded", () => {
   loadHistory();
 
   document.getElementById("clear-btn").addEventListener("click", () => {
-    browser.runtime.sendMessage({ type: "CLEAR_HISTORY" }).then(loadHistory);
+    browser.storage.local.remove("ttfw_history").then(loadHistory);
   });
 
-  document.getElementById("export-btn").addEventListener("click", () => {
-    browser.runtime.sendMessage({ type: "GET_HISTORY" }).then(exportJSON);
+  document.getElementById("export-btn").addEventListener("click", async () => {
+    const result = await browser.storage.local.get("ttfw_history");
+    exportJSON(result.ttfw_history || []);
+  });
+
+  document.querySelectorAll(".range-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      selectedRange = btn.dataset.range === "all" ? "all" : Number(btn.dataset.range);
+      document.querySelectorAll(".range-btn").forEach((b) => b.classList.remove("is-active"));
+      btn.classList.add("is-active");
+      loadHistory();
+    });
   });
 });
 
-function loadHistory() {
-  browser.runtime.sendMessage({ type: "GET_HISTORY" }).then((history) => {
-    renderStats(history);
-    renderCharts(history);
-    renderModels(history);
-    renderHistory(history);
-  });
+// Auto-refresh popup when content script writes new data
+browser.storage.onChanged.addListener((changes, area) => {
+  if (area === "local" && changes.ttfw_history) loadHistory();
+});
+
+async function loadHistory() {
+  const result = await browser.storage.local.get("ttfw_history");
+  const allHistory = result.ttfw_history || [];
+  const history = filterHistory(allHistory);
+  updateRangeStatus(allHistory.length, history.length);
+  renderStats(history);
+  renderCharts(history);
+  renderModels(history);
+  renderHistory(history);
+}
+
+function filterHistory(history) {
+  if (selectedRange === "all") return history;
+  return history.slice(-selectedRange);
+}
+
+function updateRangeStatus(total, filtered) {
+  const el = document.getElementById("range-status");
+  if (!el) return;
+  el.textContent = selectedRange === "all"
+    ? `${total} measurement${total !== 1 ? "s" : ""}`
+    : `${filtered} of ${total} measurement${total !== 1 ? "s" : ""}`;
 }
 
 function exportJSON(history) {
-  const date = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+  const date = new Date().toISOString().slice(0, 10);
   const filename = `llm-speed-monitor-${date}.json`;
-  const blob = new Blob(
-    [JSON.stringify(history, null, 2)],
-    { type: "application/json" }
-  );
+  const blob = new Blob([JSON.stringify(history, null, 2)], { type: "application/json" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
@@ -51,8 +81,7 @@ function avg(arr) {
 
 function renderStats(history) {
   const count = history.length;
-  document.getElementById("entry-count").textContent =
-    `${count} measurement${count !== 1 ? "s" : ""}`;
+  // entry-count is now handled by updateRangeStatus
 
   if (!count) {
     ["stat-ttfw","stat-wps","stat-p50","stat-p90","stat-ttfw-p50","stat-ttfw-p90"]
@@ -86,7 +115,7 @@ const CHART_LABEL  = "#666";
 const CHART_DOT    = "#c3e88d";
 
 function renderCharts(history) {
-  const recent = history.slice(-30); // last 30 in chronological order
+  const recent = history.slice(-30);
   drawLineChart("chart-wps", recent.map((h) => h.wps), "");
   drawLineChart("chart-ttfw", recent.map((h) => h.ttfw), "");
 }
@@ -162,7 +191,7 @@ function drawLineChart(canvasId, values, _unit) {
   ctx.lineJoin = "round";
   ctx.stroke();
 
-  // Dots for last point
+  // Dot on last point
   const last = values.length - 1;
   ctx.beginPath();
   ctx.arc(toX(last), toY(values[last]), 3, 0, Math.PI * 2);
@@ -239,9 +268,7 @@ function renderHistory(history) {
       month: "short", day: "numeric", hour: "2-digit", minute: "2-digit",
     });
     const siteLabel = SITE_LABEL[entry.site] || "GPT";
-    const modelStr = entry.model && entry.model !== "unknown"
-      ? entry.model
-      : siteLabel;
+    const modelStr = entry.model && entry.model !== "unknown" ? entry.model : siteLabel;
     const siteColor = SITE_COLORS[entry.site] || SITE_COLORS.chatgpt;
 
     row.innerHTML = `
@@ -249,6 +276,7 @@ function renderHistory(history) {
         <span class="entry-model" style="color:${siteColor}">${modelStr}</span>
         <span class="entry-time">${timeStr}</span>
       </div>
+      ${entry.promptPreview ? `<div class="entry-preview">${entry.promptPreview.slice(0, 100)}</div>` : ""}
       <div class="entry-metrics">
         <span class="metric">TTFW <b>${entry.ttfw.toFixed(2)}s</b></span>
         <span class="metric">WPS <b>${entry.wps.toFixed(1)}</b></span>

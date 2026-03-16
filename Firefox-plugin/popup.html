@@ -37,14 +37,22 @@
           <span class="stat-value" id="stat-ttfw-p90">—</span>
         </div>
       </div>
-      <div class="entry-count" id="entry-count">0 measurements</div>
+      <div class="entry-count" id="range-status">0 measurements</div>
     </div>
 
     <!-- ── Charts ── -->
     <div class="section" id="section-charts">
-      <h2>Last 30 responses</h2>
+      <div class="section-header">
+        <h2>Charts</h2>
+        <div class="range-filters">
+          <button class="range-btn" data-range="10">10</button>
+          <button class="range-btn" data-range="25">25</button>
+          <button class="range-btn" data-range="50">50</button>
+          <button class="range-btn is-active" data-range="all">All</button>
+        </div>
+      </div>
       <div class="chart-block">
-        <div class="chart-label">Words / second</div>
+        <div class="chart-label">Words / second (streaming speed)</div>
         <canvas id="chart-wps" width="320" height="72"></canvas>
       </div>
       <div class="chart-block">

@@ -20,6 +20,14 @@
   opacity: 1;
 }
 
+#ttfw-overlay[data-status="streaming"] {
+  border-color: rgba(45, 212, 191, 0.7);
+}
+
+#ttfw-overlay[data-status="waiting"] {
+  border-color: rgba(250, 204, 21, 0.6);
+}
+
 #ttfw-header {
   display: flex;
   align-items: center;

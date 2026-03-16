@@ -25,6 +25,46 @@ function percentile(items, key, p) {
   return values[index];
 }
 
+function downloadSamples(samples) {
+  const date = new Date().toISOString().slice(0, 10);
+  const filename = `chatgpt-ttfw-samples-${date}.json`;
+  const exportedSamples = samples.map((sample) => ({
+    id: sample.id,
+    sessionId: sample.sessionId,
+    site: sample.site,
+    model: sample.model,
+    hostname: sample.hostname,
+    startedAt: sample.startedAt,
+    locale: sample.locale,
+    timezone: sample.timezone,
+    utcOffsetMinutes: sample.utcOffsetMinutes,
+    visibilityStateAtStart: sample.visibilityStateAtStart,
+    wasPageVisibleAtStart: sample.wasPageVisibleAtStart,
+    onlineAtStart: sample.onlineAtStart,
+    connectionEffectiveType: sample.connectionEffectiveType,
+    connectionRttMs: sample.connectionRttMs,
+    connectionDownlinkMbps: sample.connectionDownlinkMbps,
+    connectionSaveData: sample.connectionSaveData,
+    inputWords: sample.inputWords,
+    ttfwMs: sample.ttfwMs,
+    ttlwMs: sample.ttlwMs,
+    streamingMs: sample.streamingMs,
+    wordCount: sample.wordCount,
+    wordsPerSecond: sample.wordsPerSecond,
+    endToEndWordsPerSecond: sample.endToEndWordsPerSecond,
+    reason: sample.reason
+  }));
+  const blob = new Blob([JSON.stringify(exportedSamples, null, 2)], {
+    type: "application/json"
+  });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  anchor.click();
+  URL.revokeObjectURL(url);
+}
+
 function formatMs(value) {
   if (!value && value !== 0) {
     return "-";
@@ -62,9 +102,30 @@ function formatDate(isoString) {
 
 function renderSummary(samples) {
   document.getElementById("samples-count").textContent = String(samples.length);
+  const ids = [
+    "avg-ttfw",
+    "avg-ttlw",
+    "avg-wps",
+    "p50-wps",
+    "p95-wps",
+    "p50-ttfw",
+    "p95-ttfw"
+  ];
+
+  if (!samples.length) {
+    ids.forEach((id) => {
+      document.getElementById(id).textContent = "-";
+    });
+    return;
+  }
+
   document.getElementById("avg-ttfw").textContent = formatMs(average(samples, "ttfwMs"));
   document.getElementById("avg-ttlw").textContent = formatMs(average(samples, "ttlwMs"));
   document.getElementById("avg-wps").textContent = formatNumber(average(samples, "wordsPerSecond"));
+  document.getElementById("p50-wps").textContent = formatNumber(percentile(samples, "wordsPerSecond", 50));
+  document.getElementById("p95-wps").textContent = formatNumber(percentile(samples, "wordsPerSecond", 95));
+  document.getElementById("p50-ttfw").textContent = formatMs(percentile(samples, "ttfwMs", 50));
+  document.getElementById("p95-ttfw").textContent = formatMs(percentile(samples, "ttfwMs", 95));
 }
 
 function filterSamples(samples) {
@@ -86,8 +147,8 @@ function renderRangeState(totalCount, filteredCount) {
 
 function buildChartSvg(values) {
   const width = 320;
-  const height = 132;
-  const padding = { top: 10, right: 8, bottom: 20, left: 8 };
+  const height = 112;
+  const padding = { top: 10, right: 8, bottom: 6, left: 8 };
   const innerWidth = width - padding.left - padding.right;
   const innerHeight = height - padding.top - padding.bottom;
   const minValue = Math.min(...values);
@@ -110,15 +171,13 @@ function buildChartSvg(values) {
   const midY = padding.top + innerHeight / 2;
 
   return `
-    <svg class="chart-svg" viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" aria-hidden="true">
+    <svg class="chart-svg" viewBox="0 0 ${width} ${height}" aria-hidden="true">
       <line class="chart-grid-line" x1="${padding.left}" y1="${padding.top}" x2="${padding.left + innerWidth}" y2="${padding.top}"></line>
       <line class="chart-grid-line" x1="${padding.left}" y1="${midY}" x2="${padding.left + innerWidth}" y2="${midY}"></line>
       <line class="chart-grid-line" x1="${padding.left}" y1="${padding.top + innerHeight}" x2="${padding.left + innerWidth}" y2="${padding.top + innerHeight}"></line>
       <polygon class="chart-area" points="${area}"></polygon>
       <polyline class="chart-line" points="${polyline}"></polyline>
       <circle class="chart-point" cx="${points[points.length - 1].x}" cy="${points[points.length - 1].y}" r="3.5"></circle>
-      <text class="chart-label" x="${padding.left}" y="${height - 6}">Oldest</text>
-      <text class="chart-label" x="${width - padding.right}" y="${height - 6}" text-anchor="end">Latest</text>
     </svg>
   `;
 }
@@ -135,7 +194,13 @@ function renderChart(containerId, samples, key, formatter) {
   }
 
   container.className = "chart-canvas";
-  container.innerHTML = buildChartSvg(values);
+  container.innerHTML = `
+    ${buildChartSvg(values)}
+    <div class="chart-axis" aria-hidden="true">
+      <span>Oldest</span>
+      <span>Latest</span>
+    </div>
+  `;
   container.setAttribute("aria-label", chronological.map((sample) => formatter(sample[key])).join(", "));
 }
 
@@ -160,12 +225,64 @@ function renderOverlaySettings(settings) {
   const normalized = normalizeOverlaySettings(settings);
   document.getElementById("overlay-toggle").checked = normalized.enabled;
   document.getElementById("overlay-status").textContent = normalized.enabled
-    ? "Visible on chatgpt.com"
+    ? "Visible on supported sites"
     : "Hidden on page";
 }
 
 function sampleTitle(sample) {
   return sample.promptPreview || sample.title || "Untitled prompt";
+}
+
+function sampleModel(sample) {
+  const site = sample.site ? String(sample.site) : "unknown";
+  const model = sample.model && sample.model !== "unknown" ? sample.model : "Unknown model";
+  return `${site}: ${model}`;
+}
+
+function renderModels(samples) {
+  const list = document.getElementById("model-list");
+  const empty = document.getElementById("model-empty");
+  const groups = new Map();
+
+  list.innerHTML = "";
+
+  samples.forEach((sample) => {
+    const key = sampleModel(sample);
+    const current = groups.get(key) || [];
+    current.push(sample);
+    groups.set(key, current);
+  });
+
+  const rows = Array.from(groups.entries())
+    .map(([model, entries]) => ({ model, entries }))
+    .sort((left, right) => {
+      if (right.entries.length !== left.entries.length) {
+        return right.entries.length - left.entries.length;
+      }
+      return left.model.localeCompare(right.model);
+    });
+
+  empty.hidden = rows.length > 0;
+  if (!rows.length) {
+    return;
+  }
+
+  rows.forEach(({ model, entries }) => {
+    const row = document.createElement("article");
+    row.className = "model-row";
+    row.innerHTML = `
+      <div class="model-top">
+        <strong class="model-name">${model}</strong>
+        <span class="model-count">${entries.length} runs</span>
+      </div>
+      <div class="model-stats">
+        <span class="chip">Avg TTFW ${formatMs(average(entries, "ttfwMs"))}</span>
+        <span class="chip">Avg WPS ${formatNumber(average(entries, "wordsPerSecond"))}</span>
+        <span class="chip">P50 WPS ${formatNumber(percentile(entries, "wordsPerSecond", 50))}</span>
+      </div>
+    `;
+    list.appendChild(row);
+  });
 }
 
 function renderSamples(samples) {
@@ -182,11 +299,14 @@ function renderSamples(samples) {
     fragment.querySelector(".sample-time").textContent = formatDate(sample.startedAt);
 
     const metrics = [
+      sample.site ? String(sample.site).toUpperCase() : null,
+      sample.model && sample.model !== "unknown" ? sample.model : null,
       `TTFW ${formatMs(sample.ttfwMs)}`,
       `TTLW ${formatMs(sample.ttlwMs)}`,
       `${sample.wordCount} words`,
-      `${formatNumber(sample.wordsPerSecond)} wps`
-    ];
+      `${formatNumber(sample.wordsPerSecond)} wps`,
+      sample.inputWords ? `In ${sample.inputWords} words` : null
+    ].filter(Boolean);
 
     const metricsContainer = fragment.querySelector(".sample-metrics");
     metrics.forEach((metric) => {
@@ -206,12 +326,23 @@ async function loadSamples() {
   const samples = filterSamples(allSamples);
   renderRangeState(allSamples.length, samples.length);
   renderSummary(samples);
+  renderModels(samples);
   renderCharts(samples);
   renderSamples(samples);
   renderOverlaySettings(data[OVERLAY_SETTINGS_KEY]);
 }
 
+document.getElementById("export-button").addEventListener("click", async () => {
+  const data = await storage.get(STORAGE_KEY);
+  const samples = Array.isArray(data[STORAGE_KEY]) ? data[STORAGE_KEY] : [];
+  downloadSamples(samples);
+});
+
 document.getElementById("clear-button").addEventListener("click", async () => {
+  const confirmed = window.confirm("Clear all recorded timing samples?");
+  if (!confirmed) {
+    return;
+  }
   await storage.set({ [STORAGE_KEY]: [] });
   await loadSamples();
 });

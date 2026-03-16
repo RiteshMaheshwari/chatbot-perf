@@ -4,29 +4,79 @@
   const STORAGE_KEY = "chatgpt_ttfw_samples";
   const OVERLAY_SETTINGS_KEY = "chatgpt_ttfw_overlay_settings";
   const MAX_SAMPLES = 200;
-  const COMPLETION_SETTLE_MS = 120;
   const HARD_TIMEOUT_MS = 120000;
-  const POLL_MS = 100;
   const DEBUG = false;
-  const COMPOSER_SELECTOR =
-    "textarea[name='prompt-textarea'], textarea.wcDTda_fallbackTextarea, div[contenteditable='true'][role='textbox'], div[contenteditable='true']";
-  const SEND_BUTTON_SELECTOR =
-    "#composer-submit-button, button[data-testid='send-button'], button[aria-label='Send prompt']";
-  const ASSISTANT_TURN_SELECTOR =
-    "article[data-turn='assistant'][data-testid^='conversation-turn-']";
-  const USER_TURN_SELECTOR =
-    "article[data-turn='user'][data-testid^='conversation-turn-']";
-  const CONVERSATION_TURN_SELECTOR =
-    "article[data-testid^='conversation-turn-'][data-turn]";
-  const ASSISTANT_MESSAGE_SELECTOR =
-    "[data-message-author-role='assistant']";
-  const MARKDOWN_CONTENT_SELECTOR =
-    "[data-message-author-role='assistant'] .markdown, [data-message-author-role='assistant'] .prose, .markdown, .prose";
-  const STREAMING_CONTENT_SELECTOR =
-    ".streaming-animation, [data-writing-block], .BZ_Pyq_root";
+  const SESSION_ID = typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+    ? crypto.randomUUID()
+    : `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  const SITE = window.location.hostname.includes("claude.ai")
+    ? "claude"
+    : window.location.hostname.includes("perplexity.ai")
+    ? "perplexity"
+    : "chatgpt";
+  const SITE_CONFIG = {
+    chatgpt: {
+      name: "ChatGPT",
+      composerSelector:
+        "textarea[name='prompt-textarea'], textarea.wcDTda_fallbackTextarea, div[contenteditable='true'][role='textbox'], div[contenteditable='true']",
+      sendButtonSelector:
+        "#composer-submit-button, button[data-testid='send-button'], button[aria-label='Send prompt']",
+      assistantTurnSelector:
+        "article[data-turn='assistant'][data-testid^='conversation-turn-']",
+      userTurnSelector:
+        "article[data-turn='user'][data-testid^='conversation-turn-']",
+      conversationTurnSelector:
+        "article[data-testid^='conversation-turn-'][data-turn]",
+      assistantMessageSelector:
+        "[data-message-author-role='assistant']",
+      markdownContentSelector:
+        "[data-message-author-role='assistant'] .markdown, [data-message-author-role='assistant'] .prose, .markdown, .prose",
+      streamingContentSelector:
+        ".streaming-animation, [data-writing-block], .BZ_Pyq_root",
+      streamingAttribute: null,
+      requireMarkdownRoot: false,
+      defaultModel: "unknown",
+      completionSettleMs: 120
+    },
+    claude: {
+      name: "Claude",
+      composerSelector:
+        "div[contenteditable='true'][class*='ProseMirror'], div[contenteditable='true']",
+      sendButtonSelector:
+        "button[aria-label='Send Message'], button[aria-label='Send message'], button[data-testid='send-button']",
+      assistantTurnSelector: null,
+      userTurnSelector: null,
+      conversationTurnSelector: null,
+      assistantMessageSelector: "[data-is-streaming]",
+      markdownContentSelector: ".font-claude-response, [class*='font-claude-response']",
+      streamingContentSelector: null,
+      streamingAttribute: "data-is-streaming",
+      requireMarkdownRoot: true,
+      defaultModel: "claude",
+      completionSettleMs: 600
+    },
+    perplexity: {
+      name: "Perplexity",
+      composerSelector: "textarea, div[contenteditable='true']",
+      sendButtonSelector:
+        "button[aria-label='Submit'], button[aria-label='Ask'], button[aria-label='Ask Perplexity'], button[aria-label='Search'], button[data-testid='submit-button'], form button[type='submit']",
+      assistantTurnSelector: null,
+      userTurnSelector: null,
+      conversationTurnSelector: null,
+      assistantMessageSelector: "[id^='markdown-content-']",
+      markdownContentSelector: ".prose, [class*='prose'], [id^='markdown-content-']",
+      streamingContentSelector: null,
+      streamingAttribute: null,
+      requireMarkdownRoot: false,
+      defaultModel: "perplexity",
+      completionSettleMs: 1500
+    }
+  }[SITE];
   const MIN_VISIBLE_OPACITY = 0.75;
+  const COMPLETION_SETTLE_MS = SITE_CONFIG.completionSettleMs;
+  const POLL_MS = 100;
   const DEFAULT_OVERLAY_SETTINGS = {
-    enabled: false,
+    enabled: true,
     left: null,
     top: 16
   };
@@ -38,6 +88,7 @@
   let lastSubmitAt = 0;
   let lastComposerText = "";
   let latestSample = null;
+  let overlaySample = null;
   let overlaySettings = { ...DEFAULT_OVERLAY_SETTINGS };
   let overlayRoot = null;
   let overlayRefs = null;
@@ -50,6 +101,20 @@
 
   function nowMs() {
     return performance.now();
+  }
+
+  function queryAll(selector, root = document) {
+    if (!selector) {
+      return [];
+    }
+    return Array.from(root.querySelectorAll(selector));
+  }
+
+  function queryOne(selector, root = document) {
+    if (!selector) {
+      return null;
+    }
+    return root.querySelector(selector);
   }
 
   function getStorageArea() {
@@ -91,7 +156,7 @@
 
   function normalizeOverlaySettings(raw) {
     return {
-      enabled: Boolean(raw?.enabled),
+      enabled: raw?.enabled === undefined ? DEFAULT_OVERLAY_SETTINGS.enabled : Boolean(raw?.enabled),
       left: Number.isFinite(raw?.left) ? raw.left : null,
       top: Number.isFinite(raw?.top) ? raw.top : DEFAULT_OVERLAY_SETTINGS.top
     };
@@ -124,6 +189,60 @@
     return wordMatches(text).length;
   }
 
+  function getModelSlug(message) {
+    const messageRoot = getMessageRoot(message);
+    if (!messageRoot) {
+      return SITE_CONFIG.defaultModel;
+    }
+
+    const directAttr =
+      messageRoot.getAttribute("data-message-model-slug") ||
+      messageRoot.closest?.("[data-message-model-slug]")?.getAttribute("data-message-model-slug");
+    if (directAttr) {
+      return directAttr;
+    }
+
+    const nestedAttr = messageRoot.querySelector?.("[data-message-model-slug]");
+    return nestedAttr?.getAttribute("data-message-model-slug") || SITE_CONFIG.defaultModel;
+  }
+
+  function getMeasurementRoot(message) {
+    const messageRoot = getMessageRoot(message);
+    if (!messageRoot) {
+      return null;
+    }
+
+    if (!SITE_CONFIG.requireMarkdownRoot) {
+      return messageRoot;
+    }
+
+    return queryOne(SITE_CONFIG.markdownContentSelector, messageRoot);
+  }
+
+  function getConnectionInfo() {
+    const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+    return {
+      connectionEffectiveType: connection?.effectiveType || null,
+      connectionRttMs: Number.isFinite(connection?.rtt) ? connection.rtt : null,
+      connectionDownlinkMbps: Number.isFinite(connection?.downlink) ? connection.downlink : null,
+      connectionSaveData: typeof connection?.saveData === "boolean" ? connection.saveData : null
+    };
+  }
+
+  function getRunContext(startedWallClock) {
+    const startedDate = new Date(startedWallClock);
+    return {
+      hostname: window.location.hostname,
+      locale: navigator.language || null,
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || null,
+      utcOffsetMinutes: startedDate.getTimezoneOffset() * -1,
+      visibilityStateAtStart: document.visibilityState,
+      wasPageVisibleAtStart: document.visibilityState === "visible",
+      onlineAtStart: navigator.onLine,
+      ...getConnectionInfo()
+    };
+  }
+
   async function saveOverlaySettings(patch) {
     overlaySettings = normalizeOverlaySettings({
       ...overlaySettings,
@@ -133,7 +252,7 @@
   }
 
   function getVisibleComposer() {
-    const candidates = Array.from(document.querySelectorAll(COMPOSER_SELECTOR))
+    const candidates = queryAll(SITE_CONFIG.composerSelector)
       .filter(isVisible);
 
     candidates.sort((a, b) => b.getBoundingClientRect().bottom - a.getBoundingClientRect().bottom);
@@ -178,6 +297,7 @@
       (id === "composer-submit-button" && text.includes("stop")) ||
       text.includes("stop generating") ||
       text.includes("stop streaming") ||
+      text.includes("stop response") ||
       text === "stop" ||
       testId.includes("stop")
     );
@@ -198,29 +318,43 @@
     const id = (button.id || "").toLowerCase();
 
     return (
-      button.matches(SEND_BUTTON_SELECTOR) ||
+      button.matches(SITE_CONFIG.sendButtonSelector) ||
       id === "composer-submit-button" ||
       type === "submit" ||
       text.includes("send prompt") ||
       text.includes("send message") ||
+      text.includes("ask perplexity") ||
+      text.includes("ask") ||
       text.includes("submit") ||
       testId.includes("send")
     );
   }
 
   function generationLooksActive() {
-    return Array.from(document.querySelectorAll(SEND_BUTTON_SELECTOR + ", button")).some(isStopButton);
+    const selector = SITE_CONFIG.sendButtonSelector
+      ? `${SITE_CONFIG.sendButtonSelector}, button`
+      : "button";
+    const hasStopButton = queryAll(selector).some(isStopButton);
+    if (hasStopButton) {
+      return true;
+    }
+
+    if (SITE_CONFIG.streamingAttribute) {
+      return queryAll(`[${SITE_CONFIG.streamingAttribute}="true"]`).some(isVisible);
+    }
+
+    return false;
   }
 
   function getAssistantContainers() {
-    const turnArticles = Array.from(document.querySelectorAll(ASSISTANT_TURN_SELECTOR))
+    const turnArticles = queryAll(SITE_CONFIG.assistantTurnSelector)
       .filter(isVisible);
 
     if (turnArticles.length > 0) {
       return turnArticles;
     }
 
-    const explicitRole = Array.from(document.querySelectorAll(ASSISTANT_MESSAGE_SELECTOR))
+    const explicitRole = queryAll(SITE_CONFIG.assistantMessageSelector)
       .filter(isVisible);
 
     if (explicitRole.length > 0) {
@@ -249,23 +383,24 @@
   }
 
   function getMessageText(message) {
-    if (!message) {
+    const measurementRoot = getMeasurementRoot(message);
+    if (!measurementRoot) {
       return "";
     }
 
-    const messageRoot = getMessageRoot(message);
-
     const contentRoots = [
       "[data-testid='conversation-turn-content']",
-      MARKDOWN_CONTENT_SELECTOR,
+      SITE_CONFIG.markdownContentSelector,
       "[class*='markdown']"
     ]
-      .flatMap((selector) => Array.from(messageRoot.querySelectorAll(selector)))
+      .flatMap((selector) => Array.from(measurementRoot.querySelectorAll(selector)))
       .filter(isVisible);
 
     let text = "";
     if (contentRoots.length > 0) {
       text = contentRoots.map((node) => node.innerText || node.textContent || "").join(" ");
+    } else if (SITE_CONFIG.requireMarkdownRoot) {
+      text = measurementRoot.innerText || measurementRoot.textContent || "";
     } else {
       text = message.innerText || message.textContent || "";
     }
@@ -280,8 +415,8 @@
       return null;
     }
 
-    return message.matches?.(ASSISTANT_TURN_SELECTOR)
-      ? message.querySelector(ASSISTANT_MESSAGE_SELECTOR) || message
+    return SITE_CONFIG.assistantTurnSelector && message.matches?.(SITE_CONFIG.assistantTurnSelector)
+      ? queryOne(SITE_CONFIG.assistantMessageSelector, message) || message
       : message;
   }
 
@@ -313,7 +448,7 @@
   }
 
   function getVisibleMessageText(message) {
-    const messageRoot = getMessageRoot(message);
+    const messageRoot = getMeasurementRoot(message);
     if (!messageRoot) {
       return "";
     }
@@ -345,7 +480,11 @@
       return false;
     }
 
-    return Boolean(candidate.querySelector(STREAMING_CONTENT_SELECTOR));
+    if (SITE_CONFIG.streamingAttribute) {
+      return candidate.getAttribute(SITE_CONFIG.streamingAttribute) === "true";
+    }
+
+    return Boolean(queryOne(SITE_CONFIG.streamingContentSelector, candidate));
   }
 
   function ensureOverlayStyles() {
@@ -558,10 +697,17 @@
       elapsedText = formatMs(elapsed);
       firstWordText = firstWordDelay ? formatMs(firstWordDelay) : "...";
       wordCountText = String(activeRun.visibleWordCount || 0);
+    } else if (overlaySample) {
+      status = "complete";
+      statusText = "Complete";
+      promptText = truncateText(overlaySample.promptPreview || "Last completed prompt.", 120);
+      elapsedText = formatMs(overlaySample.ttlwMs);
+      firstWordText = formatMs(overlaySample.ttfwMs);
+      wordCountText = String(overlaySample.wordCount || 0);
     }
 
     const latestSummary = latestSample
-      ? `Last run: TTFW ${formatMs(latestSample.ttfwMs)} | TTLW ${formatMs(latestSample.ttlwMs)} | ${latestSample.wordCount} words | ${formatNumber(latestSample.wordsPerSecond)} wps`
+      ? `Last run: ${latestSample.site || SITE} | ${latestSample.model || "unknown"} | TTFW ${formatMs(latestSample.ttfwMs)} | TTLW ${formatMs(latestSample.ttlwMs)} | ${latestSample.wordCount} words | ${formatNumber(latestSample.wordsPerSecond)} wps`
       : "No completed runs captured yet.";
 
     overlayRoot.dataset.status = status;
@@ -652,7 +798,7 @@
     overlayRoot.innerHTML = `
       <div class="ttfw-header">
         <div class="ttfw-title-wrap">
-          <div class="ttfw-eyebrow">ChatGPT UI Timing</div>
+          <div class="ttfw-eyebrow">${SITE_CONFIG.name} UI Timing</div>
           <div class="ttfw-title">TTFW Overlay</div>
         </div>
         <button class="ttfw-hide" type="button">Hide</button>
@@ -737,12 +883,12 @@
   }
 
   function getLatestUserTurn() {
-    const turns = Array.from(document.querySelectorAll(USER_TURN_SELECTOR)).filter(isVisible);
+    const turns = queryAll(SITE_CONFIG.userTurnSelector).filter(isVisible);
     return turns.at(-1) || null;
   }
 
   function getConversationTurns() {
-    return Array.from(document.querySelectorAll(CONVERSATION_TURN_SELECTOR)).filter(isVisible);
+    return queryAll(SITE_CONFIG.conversationTurnSelector).filter(isVisible);
   }
 
   function getAssistantTurnsAfterSubmittedUser(run) {
@@ -785,7 +931,8 @@
 
   function getRunCandidate(run) {
     const turnAwareCandidates = getAssistantTurnsAfterSubmittedUser(run);
-    const hasTurnStructure = document.querySelector(CONVERSATION_TURN_SELECTOR) !== null;
+    const hasTurnStructure = Boolean(SITE_CONFIG.conversationTurnSelector) &&
+      queryOne(SITE_CONFIG.conversationTurnSelector) !== null;
 
     let candidates = [];
     if (hasTurnStructure) {
@@ -842,9 +989,9 @@
     }
 
     const run = activeRun;
-    resetActiveRun(reason);
 
     if (!run.firstWordAt || !run.completedAt || run.finalWordCount === 0) {
+      resetActiveRun(reason);
       debugLog("discarding incomplete run", reason, run);
       return;
     }
@@ -857,10 +1004,25 @@
 
     const sample = {
       id: run.id,
+      sessionId: SESSION_ID,
+      site: SITE,
+      model: run.modelSlug || "unknown",
+      hostname: run.context.hostname,
       url: location.href,
       title: document.title,
       startedAt: new Date(run.startedWallClock).toISOString(),
+      locale: run.context.locale,
+      timezone: run.context.timezone,
+      utcOffsetMinutes: run.context.utcOffsetMinutes,
+      visibilityStateAtStart: run.context.visibilityStateAtStart,
+      wasPageVisibleAtStart: run.context.wasPageVisibleAtStart,
+      onlineAtStart: run.context.onlineAtStart,
+      connectionEffectiveType: run.context.connectionEffectiveType,
+      connectionRttMs: run.context.connectionRttMs,
+      connectionDownlinkMbps: run.context.connectionDownlinkMbps,
+      connectionSaveData: run.context.connectionSaveData,
       promptPreview: run.promptPreview,
+      inputWords: run.inputWordCount,
       ttfwMs,
       ttlwMs,
       streamingMs,
@@ -871,7 +1033,9 @@
     };
 
     debugLog("persist sample", sample);
+    overlaySample = sample;
     latestSample = sample;
+    resetActiveRun(reason);
     updateOverlay();
     await persistSample(sample);
   }
@@ -919,6 +1083,10 @@
       run.finalWordCount = visibleWords;
     }
 
+    if (candidate && (!run.modelSlug || run.modelSlug === "unknown")) {
+      run.modelSlug = getModelSlug(candidate);
+    }
+
     if (!run.firstWordAt && visibleWords > 0) {
       run.firstWordAt = nowMs();
       run.lastContentChangeAt = run.firstWordAt;
@@ -954,19 +1122,26 @@
       resetActiveRun("superseded");
     }
 
-    const promptPreview = (getComposerText(composerElement) || lastComposerText).slice(0, 240);
+    overlaySample = null;
+
+    const fullPromptText = getComposerText(composerElement) || lastComposerText;
+    const promptPreview = fullPromptText.slice(0, 240);
     const latestUserTurn = getLatestUserTurn();
+    const startedWallClock = Date.now();
 
     activeRun = {
       id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       triggerType,
       startedAt: currentMs,
-      startedWallClock: Date.now(),
+      startedWallClock,
+      context: getRunContext(startedWallClock),
       promptPreview,
+      inputWordCount: countWords(fullPromptText),
       baselineAssistants: captureAssistantSnapshot(),
       baselineUserTurnId: latestUserTurn ? latestUserTurn.getAttribute("data-turn-id") || "" : "",
       firstWordAt: null,
       completedAt: null,
+      modelSlug: "unknown",
       trackedElement: null,
       lastContentChangeAt: currentMs,
       lastObservedWordCount: 0,
@@ -990,7 +1165,7 @@
 
   function handleSubmitEvent(event) {
     const form = event.target instanceof Element ? event.target.closest("form") : null;
-    const composer = form ? form.querySelector(COMPOSER_SELECTOR) : getVisibleComposer();
+    const composer = form ? queryOne(SITE_CONFIG.composerSelector, form) : getVisibleComposer();
     if (!composer || !isVisible(composer)) {
       return;
     }
@@ -1011,7 +1186,7 @@
       return;
     }
 
-    const composer = target.closest(COMPOSER_SELECTOR);
+    const composer = target.closest(SITE_CONFIG.composerSelector);
     if (!composer || !isVisible(composer)) {
       return;
     }
@@ -1040,7 +1215,7 @@
       return;
     }
 
-    if (!target.matches(COMPOSER_SELECTOR)) {
+    if (!target.matches(SITE_CONFIG.composerSelector)) {
       return;
     }
 
@@ -1058,7 +1233,9 @@
       }
 
       const node = mutation.target instanceof Text ? mutation.target.parentElement : mutation.target;
-      const turn = node?.closest?.(CONVERSATION_TURN_SELECTOR);
+      const turn = SITE_CONFIG.conversationTurnSelector
+        ? node?.closest?.(SITE_CONFIG.conversationTurnSelector)
+        : null;
       if (turn && (turn.getAttribute("data-turn") === "assistant" || turn.getAttribute("data-turn") === "user")) {
         scheduleProcess(25);
         return;

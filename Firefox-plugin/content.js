@@ -19,15 +19,15 @@
       assistantSelector: '[data-message-author-role="assistant"]',
       idAttr: "data-message-id",
       markdownSel: ".markdown",
-      // ChatGPT adds this class to the .markdown div while streaming
-      streamingClass: "streaming-animation",
+      streamingAttr: null,
+      requireMarkdown: false,
+      settleMs: 500,
       getModel: (el) =>
-        el?.getAttribute("data-message-model-slug") || "unknown",
+        el?.closest?.('[data-message-model-slug]')?.getAttribute('data-message-model-slug')
+        || el?.getAttribute("data-message-model-slug") || "unknown",
     },
     perplexity: {
       name: "Perplexity",
-      // NOTE: if send detection is still broken, inspect the send button and input
-      // box and share the outerHTML so the selectors below can be tightened.
       sendBtn: [
         'button[aria-label="Submit"]',
         'button[aria-label="Ask"]',
@@ -37,13 +37,12 @@
         'form button[type="submit"]',
       ].join(', '),
       composer: 'textarea, div[contenteditable="true"]',
-      // Each AI response gets a unique sequential id: markdown-content-0, markdown-content-1…
-      // Strategy 2 (ID snapshot) handles multi-turn detection cleanly with these.
       assistantSelector: '[id^="markdown-content-"]',
       idAttr: 'id',
       markdownSel: '.prose',
-      streamingClass: null,
       streamingAttr: null,
+      requireMarkdown: false,
+      settleMs: 1500,
       getModel: () => 'perplexity',
     },
     claude: {
@@ -52,16 +51,12 @@
         'button[aria-label="Send Message"], button[aria-label="Send message"], button[data-testid="send-button"]',
       composer:
         'div[contenteditable="true"][class*="ProseMirror"], div[contenteditable="true"]',
-      // The active streaming response container has data-is-streaming="true".
-      // We snapshot element *references* (not string IDs) so each turn is unique.
       assistantSelector: '[data-is-streaming]',
-      idAttr: null, // Claude uses element-reference snapshots, not string IDs
+      idAttr: null,
       markdownSel: '.font-claude-response',
-      streamingClass: null,
-      // When this attribute becomes "false" the response is complete (like streaming-animation for ChatGPT)
       streamingAttr: 'data-is-streaming',
-      // Only read text from the markdown container; avoids loading-spinner placeholder text
       requireMarkdown: true,
+      settleMs: 600,
       getModel: () => "claude",
     },
   }[SITE];
@@ -70,20 +65,20 @@
   let sendTime = null;
   let firstWordTime = null;
   let lastWordTime = null;
+  let lastContentChangeAt = 0;
   let wordCount = 0;
   let inputWords = 0;
   let capturedModel = null;
+  let inputPreview = "";
   let isWaiting = false;
   let isStreaming = false;
   let currentAssistantEl = null;
   let currentMarkdownEl = null;
-  let completionTimer = null;
   let liveTimer = null;
   let pollTimer = null;
   let knownMessageIds = new Set();
-  let knownElements = new Set(); // for Claude: element-reference snapshot
-  const COMPLETION_DEBOUNCE_MS = 2000;
-  const POLL_INTERVAL_MS = 150;
+  let knownElements = new Set();
+  const POLL_INTERVAL_MS = 100;
 
   // ── Overlay UI ─────────────────────────────────────────────────────
   function createOverlay() {
@@ -166,6 +161,10 @@
   }
 
   function updateOverlay() {
+    const overlay = document.getElementById("ttfw-overlay");
+    if (overlay) {
+      overlay.dataset.status = isWaiting ? "waiting" : isStreaming ? "streaming" : "idle";
+    }
     const elTTFW = document.getElementById("ttfw-val-ttfw");
     const elTTLW = document.getElementById("ttfw-val-ttlw");
     const elWPS = document.getElementById("ttfw-val-wps");
@@ -184,10 +183,10 @@
       elTTLW.textContent = isStreaming ? "streaming…" : "—";
     }
 
-    if (!isStreaming && lastWordTime && sendTime && wordCount > 0) {
-      elWPS.textContent = (wordCount / ((lastWordTime - sendTime) / 1000)).toFixed(1);
+    if (!isStreaming && lastWordTime && firstWordTime && wordCount > 0) {
+      elWPS.textContent = (wordCount / ((lastWordTime - firstWordTime) / 1000)).toFixed(1);
     } else if (isStreaming && firstWordTime && wordCount > 0) {
-      elWPS.textContent = "~" + (wordCount / ((performance.now() - sendTime) / 1000)).toFixed(1);
+      elWPS.textContent = "~" + (wordCount / ((performance.now() - firstWordTime) / 1000)).toFixed(1);
     } else {
       elWPS.textContent = "—";
     }
@@ -249,7 +248,13 @@
     const el = document.querySelector(ADAPTER.composer);
     if (!el) return 0;
     const text = el.textContent || el.value || "";
-    return text.trim().split(/\s+/).filter((w) => w.length > 0).length;
+    return countWords(text);
+  }
+
+  function captureInputPreview() {
+    const el = document.querySelector(ADAPTER.composer);
+    if (!el) return "";
+    return (el.textContent || el.value || "").trim().slice(0, 240);
   }
 
   // ── Detect user send ───────────────────────────────────────────────
@@ -258,17 +263,18 @@
     if (isWaiting && sendTime && performance.now() - sendTime < 500) return;
 
     inputWords = captureInputWords();
+    inputPreview = captureInputPreview();
     snapshotKnown();
     sendTime = performance.now();
     firstWordTime = null;
     lastWordTime = null;
+    lastContentChangeAt = 0;
     wordCount = 0;
     capturedModel = null;
     isWaiting = true;
     isStreaming = false;
     currentAssistantEl = null;
     currentMarkdownEl = null;
-    clearTimeout(completionTimer);
     createOverlay();
     startLiveTimer();
     startPolling();
@@ -323,162 +329,185 @@
 
   function countWords(text) {
     if (!text) return 0;
-    // Require at least one word character — filters out lone punctuation
-    // tokens like "(", "–", ")" that ChatGPT emits as separate spans
-    return text.split(/\s+/).filter((w) => /\w/.test(w)).length;
+    // Unicode-aware: handles CJK, contractions, hyphenated words
+    return (text.match(/[\p{L}\p{N}]+(?:[''\-][\p{L}\p{N}]+)*/gu) || []).length;
   }
 
-  // ── Polling ────────────────────────────────────────────────────────
+  // ── Visibility helpers (for precise TTFW detection) ────────────────
+  // Adapted from Firefox-plugin-codex: avoids counting hidden spinners/
+  // placeholder text that would give a falsely-short TTFW.
 
-  function startPolling() {
-    stopPolling();
-    pollTimer = setInterval(pollForResponse, POLL_INTERVAL_MS);
+  const MIN_VISIBLE_OPACITY = 0.75;
+
+  function hasVisibleTextRect(textNode) {
+    const range = document.createRange();
+    range.selectNodeContents(textNode);
+    const rects = Array.from(range.getClientRects());
+    range.detach?.();
+    return rects.some((r) => r.width > 0 && r.height > 0);
   }
 
-  function stopPolling() {
-    if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
-  }
-
-  function pollForResponse() {
-    if (!sendTime || (!isWaiting && !isStreaming)) {
-      stopPolling();
-      return;
+  function isElementActuallyVisible(el, root) {
+    let current = el;
+    while (current && current !== root) {
+      const style = window.getComputedStyle(current);
+      if (style.display === "none" || style.visibility === "hidden" ||
+          Number(style.opacity) < MIN_VISIBLE_OPACITY) return false;
+      current = current.parentElement;
     }
+    return true;
+  }
 
-    // ── Strategy 1: streaming class (ChatGPT) ──
-    if (!currentMarkdownEl && ADAPTER.streamingClass) {
-      const streamingEl = document.querySelector(
-        `.${ADAPTER.streamingClass}${ADAPTER.markdownSel}`
-      );
-      if (streamingEl) {
-        currentMarkdownEl = streamingEl;
-        currentAssistantEl = streamingEl.closest(ADAPTER.assistantSelector);
-        console.log(`[TTFW] Found via streaming class`);
+  function getVisibleText(source) {
+    if (!source) return "";
+    const walker = document.createTreeWalker(source, NodeFilter.SHOW_TEXT);
+    const parts = [];
+    let node = walker.nextNode();
+    while (node) {
+      const parent = node.parentElement;
+      const text = (node.textContent || "").replace(/\s+/g, " ").trim();
+      if (parent && text.length > 0 &&
+          isElementActuallyVisible(parent, source) &&
+          hasVisibleTextRect(node)) {
+        parts.push(node.textContent);
       }
+      node = walker.nextNode();
     }
+    return parts.join(" ").replace(/\s+/g, " ").trim();
+  }
 
-    // ── Strategy 1.5: data-is-streaming="true" (Claude) ──
-    // Uses element-reference comparison so each new turn is detected even if
-    // attribute values repeat across turns (data-test-render-count is not unique).
-    if (!currentAssistantEl && ADAPTER.streamingAttr) {
-      const streamingEl = document.querySelector(
-        `[${ADAPTER.streamingAttr}="true"]`
-      );
-      if (streamingEl && !knownElements.has(streamingEl)) {
-        currentAssistantEl = streamingEl;
-        currentMarkdownEl = streamingEl.querySelector(ADAPTER.markdownSel);
-        console.log(`[TTFW] Found via ${ADAPTER.streamingAttr}="true"`);
+  function getVisibleWordCount(source) {
+    return countWords(getVisibleText(source));
+  }
+
+  // ── Generation-active check (codex approach) ──────────────────────
+  // Checks if the LLM is still generating by looking for a stop button in the UI.
+  // This is more reliable than any streaming class or attribute.
+  function generationLooksActive() {
+    for (const btn of document.querySelectorAll('button')) {
+      if (!btn.offsetParent) continue; // not in layout → not visible
+      const label = (
+        btn.getAttribute('aria-label') ||
+        btn.getAttribute('title') ||
+        btn.textContent || ''
+      ).toLowerCase().trim();
+      const id = (btn.id || '').toLowerCase();
+      if (
+        label.includes('stop generating') ||
+        label.includes('stop streaming') ||
+        label.includes('stop response') ||
+        label === 'stop' ||
+        (id === 'composer-submit-button' && label.includes('stop'))
+      ) return true;
+    }
+    // Claude: streaming attribute still present
+    if (ADAPTER.streamingAttr) {
+      return !!document.querySelector(`[${ADAPTER.streamingAttr}="true"]`);
+    }
+    return false;
+  }
+
+  // ── Find the active response source element ────────────────────────
+  // Re-evaluated on every tick so we never get stuck on a stale reference.
+  function findActiveSource() {
+    // Claude: track via data-is-streaming attribute
+    if (ADAPTER.streamingAttr) {
+      const el = document.querySelector(`[${ADAPTER.streamingAttr}="true"]`);
+      if (el && !knownElements.has(el)) {
+        currentAssistantEl = el;
+        currentMarkdownEl = el.querySelector(ADAPTER.markdownSel) || null;
+        if (!capturedModel) capturedModel = ADAPTER.getModel(el);
       }
+      if (!currentAssistantEl) return null;
+      const md = currentAssistantEl.querySelector(ADAPTER.markdownSel) || currentMarkdownEl;
+      currentMarkdownEl = md;
+      return ADAPTER.requireMarkdown ? md : (md || currentAssistantEl);
     }
 
-    // ── Strategy 2: new message-id not in snapshot (ChatGPT) ──
-    if (!currentAssistantEl && ADAPTER.idAttr) {
-      for (const el of document.querySelectorAll(ADAPTER.assistantSelector)) {
-        const id = el.getAttribute(ADAPTER.idAttr);
-        if (id && !knownMessageIds.has(id)) {
-          currentAssistantEl = el;
-          currentMarkdownEl = el.querySelector(ADAPTER.markdownSel);
-          console.log(`[TTFW] Found via new ID: ${id}`);
-          break;
+    // ChatGPT / Perplexity: find latest assistant element not in snapshot
+    const all = Array.from(document.querySelectorAll(ADAPTER.assistantSelector));
+    for (let i = all.length - 1; i >= 0; i--) {
+      const el = all[i];
+      const id = ADAPTER.idAttr ? el.getAttribute(ADAPTER.idAttr) : null;
+      if (id && !knownMessageIds.has(id)) {
+        currentAssistantEl = el;
+        currentMarkdownEl = el.querySelector(ADAPTER.markdownSel) || null;
+        if (!capturedModel || capturedModel === 'unknown') {
+          capturedModel = ADAPTER.getModel(el);
         }
+        break;
       }
     }
 
-    // ── Strategy 3: markdown inside tracked element ──
-    if (currentAssistantEl && !currentMarkdownEl) {
-      currentMarkdownEl = currentAssistantEl.querySelector(ADAPTER.markdownSel);
-    }
+    if (!currentAssistantEl) return null;
+    // Always re-query markdown in case it was added after the element was found
+    const md = currentAssistantEl.querySelector(ADAPTER.markdownSel) || currentMarkdownEl;
+    currentMarkdownEl = md;
+    return ADAPTER.requireMarkdown ? md : (md || currentAssistantEl);
+  }
 
-    // ── Capture model slug once we have the assistant element ──
-    if (currentAssistantEl && !capturedModel) {
-      capturedModel = ADAPTER.getModel(currentAssistantEl);
-    }
+  // ── Core process step ──────────────────────────────────────────────
+  function processStep() {
+    if (!sendTime || (!isWaiting && !isStreaming)) return;
 
-    // ── Read text ──
-    // When requireMarkdown is true (Claude) we only count words once the
-    // dedicated response container exists — this avoids measuring placeholder
-    // / loading-spinner text that would give a falsely short TTFW.
-    const source = ADAPTER.requireMarkdown
-      ? currentMarkdownEl
-      : (currentMarkdownEl || currentAssistantEl);
+    const source = findActiveSource();
     if (!source) return;
 
     const text = getResponseText(source);
     const wc = countWords(text);
 
     if (wc > 0) {
+      const now = performance.now();
       if (!firstWordTime) {
-        firstWordTime = performance.now();
+        firstWordTime = now;
+        lastContentChangeAt = now;
         isStreaming = true;
         isWaiting = false;
-        console.log(`[TTFW] ⚡ First word at ${((firstWordTime - sendTime) / 1000).toFixed(3)}s`);
+        console.log(`[TTFW] ⚡ First word at ${((now - sendTime) / 1000).toFixed(3)}s wc=${wc}`);
       }
-
-      // Only reset debounce when word count actually changes
       if (wc !== wordCount) {
         wordCount = wc;
-        lastWordTime = performance.now();
+        lastWordTime = now;
+        lastContentChangeAt = now;
         updateOverlay();
-        clearTimeout(completionTimer);
-        completionTimer = setTimeout(checkCompletion, COMPLETION_DEBOUNCE_MS);
       }
-    }
 
-    // ── ChatGPT-specific: streaming class removed = immediately done ──
-    if (isStreaming && firstWordTime && ADAPTER.streamingClass && currentMarkdownEl) {
-      if (!currentMarkdownEl.classList.contains(ADAPTER.streamingClass)) {
-        processText();
-        finalizeMetrics();
-        return;
-      }
-    }
-
-    // ── Claude-specific: data-is-streaming="false" = immediately done ──
-    if (isStreaming && firstWordTime && ADAPTER.streamingAttr && currentAssistantEl) {
-      if (currentAssistantEl.getAttribute(ADAPTER.streamingAttr) === 'false') {
-        processText();
-        finalizeMetrics();
-        return;
+      // Completion: generation not active + text idle for settleMs
+      if (!generationLooksActive()) {
+        const idleMs = performance.now() - lastContentChangeAt;
+        if (idleMs >= ADAPTER.settleMs) {
+          console.log(`[TTFW] 🏁 Complete: idle=${idleMs.toFixed(0)}ms wc=${wordCount}`);
+          finalizeMetrics();
+        }
       }
     }
   }
 
-  function processText() {
-    const source = currentMarkdownEl || currentAssistantEl;
-    if (!source) return;
-    const text = getResponseText(source);
-    const wc = countWords(text);
-    if (wc > 0) { wordCount = wc; lastWordTime = performance.now(); }
+  // ── Polling ────────────────────────────────────────────────────────
+
+  function startPolling() {
+    stopPolling();
+    pollTimer = setInterval(processStep, POLL_INTERVAL_MS);
   }
 
-  function checkCompletion() {
-    if (!sendTime || !firstWordTime) return;
+  function stopPolling() {
+    if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+  }
 
-    // Signal 1: streaming class gone (ChatGPT)
-    const streamingClassGone = ADAPTER.streamingClass && currentMarkdownEl
-      ? !currentMarkdownEl.classList.contains(ADAPTER.streamingClass)
-      : true; // sites without the class always pass this check
-
-    // Signal 2: data-is-last-node appears
-    const article = currentAssistantEl?.closest("article") || currentAssistantEl?.closest("[data-turn]");
-    const markdownRoot = currentMarkdownEl || currentAssistantEl;
-    const lastNode = markdownRoot?.querySelector("[data-is-last-node]");
-
-    // Signal 3: copy/action button appeared
-    const copyBtn = article?.querySelector('button[data-testid="copy-turn-action-button"]')
-      || document.querySelector('button[aria-label="Copy response"], button[aria-label="Copy message"]');
-
-    if (streamingClassGone || lastNode || copyBtn) {
-      processText();
-      finalizeMetrics();
-    } else {
-      completionTimer = setTimeout(checkCompletion, 500);
-    }
+  // ── Persist metrics directly to storage (no background script needed) ──
+  function persistMetrics(metrics) {
+    browser.storage.local.get("ttfw_history").then((result) => {
+      const history = result.ttfw_history || [];
+      history.push(metrics);
+      if (history.length > 10000) history.splice(0, history.length - 10000);
+      return browser.storage.local.set({ ttfw_history: history }).then(() => {
+        console.log(`[TTFW] 💾 Saved entry #${history.length} wc=${metrics.wordCount} wps=${metrics.wps.toFixed(1)}`);
+      });
+    }).catch((err) => console.error("[TTFW] ❌ Storage error:", err));
   }
 
   function finalizeMetrics() {
-    if (!sendTime || !firstWordTime) return;
-    if (!isWaiting && !isStreaming) return;
+    if (!sendTime || !firstWordTime || (!isWaiting && !isStreaming)) return;
 
     isWaiting = false;
     isStreaming = false;
@@ -487,55 +516,31 @@
     updateOverlay();
 
     const ttfw = (firstWordTime - sendTime) / 1000;
-    const ttlw = (lastWordTime - sendTime) / 1000;
+    const ttlw = lastWordTime ? (lastWordTime - sendTime) / 1000 : ttfw;
+    const streamingMs = lastWordTime ? lastWordTime - firstWordTime : 0;
     const metrics = {
       timestamp: Date.now(),
       site: SITE,
-      model: capturedModel || ADAPTER.getModel(currentAssistantEl) || "unknown",
+      model: capturedModel || "unknown",
       ttfw,
       ttlw,
+      streamingMs,
       wordCount,
-      wps: ttlw > 0 ? wordCount / ttlw : 0,
+      wps: streamingMs > 0 ? wordCount / (streamingMs / 1000) : 0,
       inputWords,
+      promptPreview: inputPreview,
     };
 
-    console.log("[TTFW] ✓ Final:", JSON.stringify(metrics, null, 2));
-    browser.runtime.sendMessage({ type: "SAVE_METRICS", metrics });
+    console.log(`[TTFW] ✓ Final: ttfw=${ttfw.toFixed(2)}s wc=${wordCount} wps=${metrics.wps.toFixed(1)}`);
+    persistMetrics(metrics);
   }
 
   // ── MutationObserver (fast path) ───────────────────────────────────
-  const observer = new MutationObserver(() => {
-    if (!sendTime || (!isWaiting && !isStreaming)) return;
-
-    if (currentMarkdownEl || currentAssistantEl) {
-      const source = ADAPTER.requireMarkdown
-        ? currentMarkdownEl
-        : (currentMarkdownEl || currentAssistantEl);
-      if (!source) { pollForResponse(); return; }
-      const text = getResponseText(source);
-      const wc = countWords(text);
-
-      if (wc > 0 && wc !== wordCount) {
-        if (!firstWordTime) {
-          firstWordTime = performance.now();
-          isStreaming = true;
-          isWaiting = false;
-          console.log(`[TTFW] ⚡ First word at ${((firstWordTime - sendTime) / 1000).toFixed(3)}s (observer)`);
-        }
-        wordCount = wc;
-        lastWordTime = performance.now();
-        updateOverlay();
-        clearTimeout(completionTimer);
-        completionTimer = setTimeout(checkCompletion, COMPLETION_DEBOUNCE_MS);
-      }
-    } else {
-      pollForResponse();
-    }
-  });
+  const observer = new MutationObserver(() => { processStep(); });
 
   observer.observe(document.body, { childList: true, subtree: true, characterData: true });
 
   // ── Init ───────────────────────────────────────────────────────────
   createOverlay();
-  console.log(`[TTFW] v4 loaded on ${ADAPTER.name}`);
+  console.log(`[TTFW] v5 loaded on ${ADAPTER.name}`);
 })();
