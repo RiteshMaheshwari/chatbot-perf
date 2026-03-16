@@ -15,7 +15,8 @@
       "matches": [
         "*://chatgpt.com/*",
         "*://claude.ai/*",
-        "*://perplexity.ai/*"
+        "*://perplexity.ai/*",
+        "*://www.perplexity.ai/*"
       ],
       "js": ["content.js"],
       "css": ["content.css"],
