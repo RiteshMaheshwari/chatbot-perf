@@ -77,8 +77,15 @@
   let liveTimer = null;
   let pollTimer = null;
   let knownMessageIds = new Set();
+<<<<<<< HEAD
   let knownElements = new Set();
   const POLL_INTERVAL_MS = 100;
+=======
+  let knownElements = new Set(); // for Claude: element-reference snapshot
+  let lastSendApproxTime = null; // best-effort timestamp from keydown/click, used by autoDetect()
+  const COMPLETION_DEBOUNCE_MS = 2000;
+  const POLL_INTERVAL_MS = 150;
+>>>>>>> a021b09f7cbf093abea32d4969094f7c0f281434
 
   // ── Overlay UI ─────────────────────────────────────────────────────
   function createOverlay() {
@@ -283,14 +290,23 @@
   }
 
   document.addEventListener("click", (e) => {
-    if (e.target.closest(ADAPTER.sendBtn)) onUserSend();
+    if (e.target.closest(ADAPTER.sendBtn)) {
+      lastSendApproxTime = performance.now();
+      onUserSend();
+    }
   }, true);
 
   document.addEventListener("keydown", (e) => {
     if (e.key === "Enter" && !e.shiftKey && !e.ctrlKey && !e.metaKey) {
-      if (e.target.closest(ADAPTER.composer)) {
-        const text = e.target.textContent || e.target.value || "";
-        if (text.trim().length > 0) onUserSend();
+      const composerEl = e.target.closest(ADAPTER.composer);
+      if (composerEl) {
+        // Use the composer root's text, not e.target — e.target may be a
+        // focused child <p> that is empty when the real content is in siblings.
+        const text = composerEl.textContent || composerEl.value || "";
+        if (text.trim().length > 0) {
+          lastSendApproxTime = performance.now();
+          onUserSend();
+        }
       }
     }
   }, true);
@@ -531,16 +547,104 @@
       promptPreview: inputPreview,
     };
 
+<<<<<<< HEAD
     console.log(`[TTFW] ✓ Final: ttfw=${ttfw.toFixed(2)}s wc=${wordCount} wps=${metrics.wps.toFixed(1)}`);
     persistMetrics(metrics);
   }
 
   // ── MutationObserver (fast path) ───────────────────────────────────
   const observer = new MutationObserver(() => { processStep(); });
+=======
+    console.log("[TTFW] ✓ Final:", JSON.stringify(metrics, null, 2));
+    browser.runtime.sendMessage({ type: "SAVE_METRICS", metrics });
+
+    // Refresh snapshot so autoDetect() can see the NEXT new element.
+    snapshotKnown();
+  }
+
+  // ── Auto-detect: pick up responses when the send event was missed ──
+  // Handles sites (e.g. Perplexity) where button/keydown detection is
+  // unreliable.  The init + post-finalize snapshotKnown() calls ensure
+  // pre-existing content never triggers this.
+  function autoDetect() {
+    let found = null;
+
+    if (ADAPTER.streamingAttr) {
+      // Claude: look for data-is-streaming="true" not in knownElements
+      const el = document.querySelector(`[${ADAPTER.streamingAttr}="true"]`);
+      if (el && !knownElements.has(el)) found = el;
+    } else if (ADAPTER.idAttr) {
+      // Perplexity / ChatGPT: find first element with an unseen ID
+      for (const el of document.querySelectorAll(ADAPTER.assistantSelector)) {
+        const id = el.getAttribute(ADAPTER.idAttr);
+        if (id && !knownMessageIds.has(id)) { found = el; break; }
+      }
+    }
+
+    if (!found) return;
+
+    // Use the last recorded keydown/click time as sendTime so TTFW is meaningful.
+    // Fall back to now() only if there's no recent timestamp (shouldn't happen normally).
+    const approxAge = lastSendApproxTime ? performance.now() - lastSendApproxTime : Infinity;
+    const estimatedSend = approxAge < 30_000 ? lastSendApproxTime : performance.now();
+    console.log(`[TTFW] Auto-detected new response (send event ${approxAge < 30_000 ? "~" + (approxAge / 1000).toFixed(1) + "s ago" : "missed entirely"})`);
+    sendTime = estimatedSend;
+    firstWordTime = null;
+    lastWordTime = null;
+    wordCount = 0;
+    capturedModel = null;
+    inputWords = 0;
+    isWaiting = true;
+    isStreaming = false;
+    currentAssistantEl = found;
+    currentMarkdownEl = found.querySelector(ADAPTER.markdownSel) || null;
+    clearTimeout(completionTimer);
+    createOverlay();
+    startLiveTimer();
+    startPolling();
+    updateOverlay();
+  }
+
+  // ── MutationObserver (fast path) ───────────────────────────────────
+  const observer = new MutationObserver(() => {
+    if (!sendTime || (!isWaiting && !isStreaming)) {
+      // Not measuring — run auto-detect to catch missed sends
+      if (!isWaiting && !isStreaming) autoDetect();
+      return;
+    }
+
+    if (currentMarkdownEl || currentAssistantEl) {
+      const source = ADAPTER.requireMarkdown
+        ? currentMarkdownEl
+        : (currentMarkdownEl || currentAssistantEl);
+      if (!source) { pollForResponse(); return; }
+      const text = getResponseText(source);
+      const wc = countWords(text);
+
+      if (wc > 0 && wc !== wordCount) {
+        if (!firstWordTime) {
+          firstWordTime = performance.now();
+          isStreaming = true;
+          isWaiting = false;
+          console.log(`[TTFW] ⚡ First word at ${((firstWordTime - sendTime) / 1000).toFixed(3)}s (observer)`);
+        }
+        wordCount = wc;
+        lastWordTime = performance.now();
+        updateOverlay();
+        clearTimeout(completionTimer);
+        completionTimer = setTimeout(checkCompletion, COMPLETION_DEBOUNCE_MS);
+      }
+    } else {
+      pollForResponse();
+    }
+  });
+>>>>>>> a021b09f7cbf093abea32d4969094f7c0f281434
 
   observer.observe(document.body, { childList: true, subtree: true, characterData: true });
 
   // ── Init ───────────────────────────────────────────────────────────
+  // Baseline snapshot so autoDetect() ignores content already on the page.
+  snapshotKnown();
   createOverlay();
   console.log(`[TTFW] v5 loaded on ${ADAPTER.name}`);
 })();
