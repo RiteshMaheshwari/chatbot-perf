@@ -2,7 +2,7 @@
   "manifest_version": 2,
   "name": "LLM Speed Monitor",
   "version": "2.0.0",
-  "description": "Measures Time to First Word, Words/sec and more for ChatGPT and Claude responses.",
+  "description": "Measures Time to First Word, Words/sec and more for ChatGPT, Claude, and Perplexity responses.",
   "permissions": [
     "storage"
   ],
@@ -14,7 +14,8 @@
     {
       "matches": [
         "*://chatgpt.com/*",
-        "*://claude.ai/*"
+        "*://claude.ai/*",
+        "*://perplexity.ai/*"
       ],
       "js": ["content.js"],
       "css": ["content.css"],

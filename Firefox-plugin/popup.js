@@ -155,6 +155,7 @@ function drawLineChart(canvasId, values, _unit) {
 const SITE_COLORS = {
   chatgpt: "#10a37f",
   claude: "#d97757",
+  perplexity: "#20b2aa",
 };
 
 function renderModels(history) {
@@ -207,7 +208,7 @@ function renderHistory(history) {
   if (!history.length) { emptyMsg.style.display = "block"; return; }
   emptyMsg.style.display = "none";
 
-  const SITE_LABEL = { chatgpt: "GPT", claude: "Claude" };
+  const SITE_LABEL = { chatgpt: "GPT", claude: "Claude", perplexity: "Pplx" };
 
   [...history].reverse().forEach((entry) => {
     const row = document.createElement("div");

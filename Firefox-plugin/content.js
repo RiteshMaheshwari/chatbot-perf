@@ -5,6 +5,8 @@
   // Provides site-specific selectors. Add new sites here.
   const SITE = window.location.hostname.includes("claude.ai")
     ? "claude"
+    : window.location.hostname.includes("perplexity.ai")
+    ? "perplexity"
     : "chatgpt";
 
   const ADAPTER = {
@@ -21,6 +23,19 @@
       streamingClass: "streaming-animation",
       getModel: (el) =>
         el?.getAttribute("data-message-model-slug") || "unknown",
+    },
+    perplexity: {
+      name: "Perplexity",
+      sendBtn: 'button[aria-label="Submit"]',
+      composer: 'textarea',
+      // Each AI response gets a unique sequential id: markdown-content-0, markdown-content-1…
+      // Strategy 2 (ID snapshot) handles multi-turn detection cleanly with these.
+      assistantSelector: '[id^="markdown-content-"]',
+      idAttr: 'id',
+      markdownSel: '.prose',
+      streamingClass: null,
+      streamingAttr: null,
+      getModel: () => 'perplexity',
     },
     claude: {
       name: "Claude",
