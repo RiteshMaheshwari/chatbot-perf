@@ -28,15 +28,16 @@
         'button[aria-label="Send Message"], button[aria-label="Send message"], button[data-testid="send-button"]',
       composer:
         'div[contenteditable="true"][class*="ProseMirror"], div[contenteditable="true"]',
-      // Claude's response turns are in field-group divs with data-test-render-count,
-      // or in divs with role="presentation" > .font-claude-message
-      // NOTE: if selectors miss, share the claude.ai HTML so we can calibrate
-      assistantSelector:
-        '[data-test-render-count], .font-claude-message, [data-is-streaming]',
-      idAttr: "data-test-render-count",
-      markdownSel: ".prose, .markdown, .font-claude-message",
-      // Claude doesn't use streaming-animation; we rely on debounce instead
+      // The active streaming response container has data-is-streaming="true".
+      // We snapshot element *references* (not string IDs) so each turn is unique.
+      assistantSelector: '[data-is-streaming]',
+      idAttr: null, // Claude uses element-reference snapshots, not string IDs
+      markdownSel: '.font-claude-response',
       streamingClass: null,
+      // When this attribute becomes "false" the response is complete (like streaming-animation for ChatGPT)
+      streamingAttr: 'data-is-streaming',
+      // Only read text from the markdown container; avoids loading-spinner placeholder text
+      requireMarkdown: true,
       getModel: () => "claude",
     },
   }[SITE];
@@ -56,6 +57,7 @@
   let liveTimer = null;
   let pollTimer = null;
   let knownMessageIds = new Set();
+  let knownElements = new Set(); // for Claude: element-reference snapshot
   const COMPLETION_DEBOUNCE_MS = 2000;
   const POLL_INTERVAL_MS = 150;
 
@@ -197,14 +199,24 @@
   }
 
   // ── Snapshot existing messages ─────────────────────────────────────
+  // ChatGPT: snapshots string IDs (data-message-id).
+  // Claude:  snapshots DOM element *references* so each new turn's element
+  //          is distinguishable even if attribute values repeat across turns.
 
-  function snapshotMessageIds() {
-    const set = new Set();
-    document.querySelectorAll(ADAPTER.assistantSelector).forEach((el) => {
-      const id = el.getAttribute(ADAPTER.idAttr);
-      if (id) set.add(id);
-    });
-    return set;
+  function snapshotKnown() {
+    knownMessageIds = new Set();
+    knownElements = new Set();
+    if (ADAPTER.streamingAttr) {
+      // Claude path: record every current [data-is-streaming] element reference
+      document.querySelectorAll(ADAPTER.assistantSelector)
+        .forEach((el) => knownElements.add(el));
+    } else {
+      // ChatGPT path: record string IDs
+      document.querySelectorAll(ADAPTER.assistantSelector).forEach((el) => {
+        const id = el.getAttribute(ADAPTER.idAttr);
+        if (id) knownMessageIds.add(id);
+      });
+    }
   }
 
   // ── Capture input text from composer ──────────────────────────────
@@ -222,7 +234,7 @@
     if (isWaiting && sendTime && performance.now() - sendTime < 500) return;
 
     inputWords = captureInputWords();
-    knownMessageIds = snapshotMessageIds();
+    snapshotKnown();
     sendTime = performance.now();
     firstWordTime = null;
     lastWordTime = null;
@@ -318,8 +330,22 @@
       }
     }
 
-    // ── Strategy 2: new message-id not in snapshot ──
-    if (!currentAssistantEl) {
+    // ── Strategy 1.5: data-is-streaming="true" (Claude) ──
+    // Uses element-reference comparison so each new turn is detected even if
+    // attribute values repeat across turns (data-test-render-count is not unique).
+    if (!currentAssistantEl && ADAPTER.streamingAttr) {
+      const streamingEl = document.querySelector(
+        `[${ADAPTER.streamingAttr}="true"]`
+      );
+      if (streamingEl && !knownElements.has(streamingEl)) {
+        currentAssistantEl = streamingEl;
+        currentMarkdownEl = streamingEl.querySelector(ADAPTER.markdownSel);
+        console.log(`[TTFW] Found via ${ADAPTER.streamingAttr}="true"`);
+      }
+    }
+
+    // ── Strategy 2: new message-id not in snapshot (ChatGPT) ──
+    if (!currentAssistantEl && ADAPTER.idAttr) {
       for (const el of document.querySelectorAll(ADAPTER.assistantSelector)) {
         const id = el.getAttribute(ADAPTER.idAttr);
         if (id && !knownMessageIds.has(id)) {
@@ -342,7 +368,12 @@
     }
 
     // ── Read text ──
-    const source = currentMarkdownEl || currentAssistantEl;
+    // When requireMarkdown is true (Claude) we only count words once the
+    // dedicated response container exists — this avoids measuring placeholder
+    // / loading-spinner text that would give a falsely short TTFW.
+    const source = ADAPTER.requireMarkdown
+      ? currentMarkdownEl
+      : (currentMarkdownEl || currentAssistantEl);
     if (!source) return;
 
     const text = getResponseText(source);
@@ -369,6 +400,15 @@
     // ── ChatGPT-specific: streaming class removed = immediately done ──
     if (isStreaming && firstWordTime && ADAPTER.streamingClass && currentMarkdownEl) {
       if (!currentMarkdownEl.classList.contains(ADAPTER.streamingClass)) {
+        processText();
+        finalizeMetrics();
+        return;
+      }
+    }
+
+    // ── Claude-specific: data-is-streaming="false" = immediately done ──
+    if (isStreaming && firstWordTime && ADAPTER.streamingAttr && currentAssistantEl) {
+      if (currentAssistantEl.getAttribute(ADAPTER.streamingAttr) === 'false') {
         processText();
         finalizeMetrics();
         return;
@@ -441,7 +481,10 @@
     if (!sendTime || (!isWaiting && !isStreaming)) return;
 
     if (currentMarkdownEl || currentAssistantEl) {
-      const source = currentMarkdownEl || currentAssistantEl;
+      const source = ADAPTER.requireMarkdown
+        ? currentMarkdownEl
+        : (currentMarkdownEl || currentAssistantEl);
+      if (!source) { pollForResponse(); return; }
       const text = getResponseText(source);
       const wc = countWords(text);
 
