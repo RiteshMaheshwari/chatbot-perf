@@ -26,8 +26,17 @@
     },
     perplexity: {
       name: "Perplexity",
-      sendBtn: 'button[aria-label="Submit"]',
-      composer: 'textarea',
+      // NOTE: if send detection is still broken, inspect the send button and input
+      // box and share the outerHTML so the selectors below can be tightened.
+      sendBtn: [
+        'button[aria-label="Submit"]',
+        'button[aria-label="Ask"]',
+        'button[aria-label="Ask Perplexity"]',
+        'button[aria-label="Search"]',
+        'button[data-testid="submit-button"]',
+        'form button[type="submit"]',
+      ].join(', '),
+      composer: 'textarea, div[contenteditable="true"]',
       // Each AI response gets a unique sequential id: markdown-content-0, markdown-content-1…
       // Strategy 2 (ID snapshot) handles multi-turn detection cleanly with these.
       assistantSelector: '[id^="markdown-content-"]',
@@ -279,6 +288,9 @@
       }
     }
   }, true);
+
+  // Fallback: catch native form submissions (some sites submit via <form>)
+  document.addEventListener("submit", () => onUserSend(), true);
 
   // ── Thinking filter ────────────────────────────────────────────────
 
