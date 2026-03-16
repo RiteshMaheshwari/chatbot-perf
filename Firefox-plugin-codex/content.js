@@ -3,7 +3,7 @@
 
   const STORAGE_KEY = "chatgpt_ttfw_samples";
   const OVERLAY_SETTINGS_KEY = "chatgpt_ttfw_overlay_settings";
-  const MAX_SAMPLES = 200;
+  const MAX_SAMPLES = 10000;
   const COMPLETION_SETTLE_MS = 120;
   const HARD_TIMEOUT_MS = 120000;
   const POLL_MS = 100;
@@ -25,6 +25,23 @@
   const STREAMING_CONTENT_SELECTOR =
     ".streaming-animation, [data-writing-block], .BZ_Pyq_root";
   const MIN_VISIBLE_OPACITY = 0.75;
+  const TRANSIENT_RESPONSE_PATTERNS = [
+    /^(searching(?: the web)?|thinking|reasoning|analyzing|browsing|checking sources|gathering sources|looking (?:that )?up)(?:[:.]\s+|\s+)?/i,
+    /^(searched|read)\s+\d+\s+(?:site|sites|source|sources|website|websites)(?:[:.]\s+|\s+)?/i
+  ];
+  const TRANSIENT_VISIBLE_TEXT_PATTERNS = [
+    /\bsearching(?: the web)?\b/i,
+    /\blooking (?:that )?up\b/i,
+    /\bchecking sources\b/i,
+    /\bgathering sources\b/i,
+    /\breading sources\b/i,
+    /\bsearched \d+\s+(?:site|sites|source|sources|website|websites)\b/i,
+    /\bread \d+\s+(?:site|sites|source|sources|website|websites)\b/i,
+    /\bbrowsing\b/i,
+    /\breasoning\b/i,
+    /\bthinking\b/i,
+    /\banalyzing\b/i
+  ];
   const DEFAULT_OVERLAY_SETTINGS = {
     enabled: false,
     left: null,
@@ -114,6 +131,33 @@
 
   function normalizeText(text) {
     return (text || "").replace(/\s+/g, " ").trim();
+  }
+
+  function stripTransientResponseText(text) {
+    let next = normalizeText(text);
+
+    for (const pattern of TRANSIENT_RESPONSE_PATTERNS) {
+      let updated = next.replace(pattern, "");
+      while (updated !== next) {
+        next = normalizeText(updated);
+        updated = next.replace(pattern, "");
+      }
+    }
+
+    return next;
+  }
+
+  function looksLikeTransientVisibleText(text) {
+    const normalized = normalizeText(text);
+    if (!normalized) {
+      return false;
+    }
+
+    if (countWords(normalized) > 12) {
+      return false;
+    }
+
+    return TRANSIENT_VISIBLE_TEXT_PATTERNS.some((pattern) => pattern.test(normalized));
   }
 
   function wordMatches(text) {
@@ -254,25 +298,23 @@
     }
 
     const messageRoot = getMessageRoot(message);
-
-    const contentRoots = [
-      "[data-testid='conversation-turn-content']",
-      MARKDOWN_CONTENT_SELECTOR,
-      "[class*='markdown']"
-    ]
-      .flatMap((selector) => Array.from(messageRoot.querySelectorAll(selector)))
-      .filter(isVisible);
+    const contentRoots = getMessageContentRoots(messageRoot);
+    const requireContentRoots = shouldRequireContentRoots(message);
 
     let text = "";
     if (contentRoots.length > 0) {
       text = contentRoots.map((node) => node.innerText || node.textContent || "").join(" ");
+    } else if (requireContentRoots) {
+      return "";
     } else {
       text = message.innerText || message.textContent || "";
     }
 
-    return normalizeText(text)
+    return stripTransientResponseText(
+      normalizeText(text)
       .replace(/\b(ChatGPT said:|You said:)\b/gi, "")
-      .trim();
+      .trim()
+    );
   }
 
   function getMessageRoot(message) {
@@ -283,6 +325,49 @@
     return message.matches?.(ASSISTANT_TURN_SELECTOR)
       ? message.querySelector(ASSISTANT_MESSAGE_SELECTOR) || message
       : message;
+  }
+
+  function getMessageContentRoots(messageRoot) {
+    if (!messageRoot) {
+      return [];
+    }
+
+    const selectors = [
+      "[data-testid='conversation-turn-content']",
+      MARKDOWN_CONTENT_SELECTOR,
+      "[class*='markdown']"
+    ];
+    const seen = new Set();
+
+    return selectors
+      .flatMap((selector) => {
+        const nodes = [];
+        if (messageRoot.matches?.(selector)) {
+          nodes.push(messageRoot);
+        }
+        nodes.push(...messageRoot.querySelectorAll(selector));
+        return nodes;
+      })
+      .filter((node) => {
+        if (!(node instanceof Element) || !isVisible(node) || seen.has(node)) {
+          return false;
+        }
+
+        seen.add(node);
+        return true;
+      });
+  }
+
+  function shouldRequireContentRoots(message) {
+    if (!(message instanceof Element)) {
+      return false;
+    }
+
+    return (
+      message.matches(ASSISTANT_TURN_SELECTOR) ||
+      message.matches(ASSISTANT_MESSAGE_SELECTOR) ||
+      Boolean(message.querySelector(ASSISTANT_MESSAGE_SELECTOR))
+    );
   }
 
   function hasVisibleTextRect(textNode) {
@@ -318,26 +403,37 @@
       return "";
     }
 
-    const walker = document.createTreeWalker(messageRoot, NodeFilter.SHOW_TEXT);
-    const parts = [];
+    const contentRoots = getMessageContentRoots(messageRoot);
+    const requireContentRoots = shouldRequireContentRoots(message);
+    const roots = contentRoots.length > 0 ? contentRoots : [messageRoot];
 
-    let currentNode = walker.nextNode();
-    while (currentNode) {
-      const parent = currentNode.parentElement;
-      if (
-        parent &&
-        normalizeText(currentNode.textContent).length > 0 &&
-        isVisible(parent) &&
-        isElementActuallyVisible(parent, messageRoot) &&
-        hasVisibleTextRect(currentNode)
-      ) {
-        parts.push(currentNode.textContent || "");
-      }
-
-      currentNode = walker.nextNode();
+    if (requireContentRoots && contentRoots.length === 0) {
+      return "";
     }
 
-    return normalizeText(parts.join(" "));
+    const parts = [];
+
+    for (const root of roots) {
+      const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+
+      let currentNode = walker.nextNode();
+      while (currentNode) {
+        const parent = currentNode.parentElement;
+        if (
+          parent &&
+          normalizeText(currentNode.textContent).length > 0 &&
+          isVisible(parent) &&
+          isElementActuallyVisible(parent, root) &&
+          hasVisibleTextRect(currentNode)
+        ) {
+          parts.push(currentNode.textContent || "");
+        }
+
+        currentNode = walker.nextNode();
+      }
+    }
+
+    return stripTransientResponseText(parts.join(" "));
   }
 
   function candidateLooksStreaming(candidate) {
@@ -901,7 +997,8 @@
     const text = getMessageText(candidate);
     const words = countWords(text);
     const visibleText = getVisibleMessageText(candidate);
-    const visibleWords = countWords(visibleText);
+    const substantiveVisibleText = looksLikeTransientVisibleText(visibleText) ? "" : visibleText;
+    const visibleWords = countWords(substantiveVisibleText);
     const candidateStreaming = candidateLooksStreaming(candidate);
 
     run.trackedElement = candidate;
