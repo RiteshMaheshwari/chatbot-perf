@@ -19,9 +19,9 @@ async function saveMetrics(metrics) {
   const result = await browser.storage.local.get("ttfw_history");
   const history = result.ttfw_history || [];
   history.push(metrics);
-  // Keep last 500 entries
-  if (history.length > 500) {
-    history.splice(0, history.length - 500);
+  // Keep last 10,000 entries
+  if (history.length > 10000) {
+    history.splice(0, history.length - 10000);
   }
   await browser.storage.local.set({ ttfw_history: history });
 }

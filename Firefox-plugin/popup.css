@@ -42,7 +42,9 @@ h2 {
 }
 .section-header h2 { margin-bottom: 0; }
 
-#clear-btn {
+.header-actions { display: flex; gap: 6px; align-items: center; }
+
+#clear-btn, #export-btn {
   background: #2a2a4a;
   border: 1px solid #3a3a5c;
   color: #888;
@@ -51,7 +53,9 @@ h2 {
   border-radius: 4px;
   cursor: pointer;
 }
-#clear-btn:hover { background: #3a3a5c; color: #fff; }
+#clear-btn:hover, #export-btn:hover { background: #3a3a5c; color: #fff; }
+#export-btn { color: #7fdbca; border-color: #7fdbca44; }
+#export-btn:hover { background: #7fdbca22; color: #7fdbca; }
 
 /* ── Stats grid ── */
 .stats-grid {

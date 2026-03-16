@@ -1,7 +1,12 @@
 document.addEventListener("DOMContentLoaded", () => {
   loadHistory();
+
   document.getElementById("clear-btn").addEventListener("click", () => {
     browser.runtime.sendMessage({ type: "CLEAR_HISTORY" }).then(loadHistory);
+  });
+
+  document.getElementById("export-btn").addEventListener("click", () => {
+    browser.runtime.sendMessage({ type: "GET_HISTORY" }).then(exportJSON);
   });
 });
 
@@ -12,6 +17,21 @@ function loadHistory() {
     renderModels(history);
     renderHistory(history);
   });
+}
+
+function exportJSON(history) {
+  const date = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+  const filename = `llm-speed-monitor-${date}.json`;
+  const blob = new Blob(
+    [JSON.stringify(history, null, 2)],
+    { type: "application/json" }
+  );
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 // ── Percentile helper ──────────────────────────────────────────────
