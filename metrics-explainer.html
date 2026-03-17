@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>Metrics Explainer</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{
+      font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+      background:#f8fafc;color:#0f172a;
+      padding:40px 28px;max-width:960px;margin:0 auto;
+    }
+    h1{font-size:1.65rem;font-weight:700;color:#0f172a;margin-bottom:6px}
+    .page-sub{color:#475569;font-size:.92rem;margin-bottom:44px}
+
+    /* Section */
+    .section{margin-bottom:52px}
+    .section-label{
+      font-size:.72rem;text-transform:uppercase;letter-spacing:.1em;
+      color:#64748b;margin-bottom:20px;font-weight:600;
+    }
+
+    /* Card grid */
+    .card-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;margin-bottom:40px}
+    .card{
+      background:#ffffff;border:1px solid #e2e8f0;border-radius:14px;
+      padding:20px 22px;box-shadow:0 1px 4px rgba(0,0,0,.06);
+    }
+    .card-icon{font-size:1.4rem;margin-bottom:10px}
+    .card-name{font-size:.82rem;text-transform:uppercase;letter-spacing:.08em;color:#64748b;margin-bottom:4px}
+    .card-title{font-size:1.05rem;font-weight:700;color:#0f172a;margin-bottom:8px}
+    .card-body{font-size:.875rem;color:#334155;line-height:1.6}
+    .card-formula{
+      margin-top:12px;background:#f1f5f9;border:1px solid #e2e8f0;
+      border-radius:8px;padding:9px 12px;
+      font-family:'SF Mono','Fira Code',monospace;font-size:.8rem;color:#4f46e5;
+    }
+
+    /* Timeline diagram */
+    .timeline-wrap{
+      background:#ffffff;border:1px solid #e2e8f0;border-radius:16px;
+      padding:36px 32px 32px;margin-bottom:40px;box-shadow:0 1px 4px rgba(0,0,0,.06);
+    }
+    .timeline-wrap h2{font-size:1rem;font-weight:600;color:#1e293b;margin-bottom:28px}
+    svg.timeline{width:100%;overflow:visible}
+
+    /* Annotation boxes */
+    .anno-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-top:28px}
+    .anno{
+      border-radius:10px;padding:12px 14px;
+      border-left:3px solid transparent;
+    }
+    .anno-name{font-size:.7rem;text-transform:uppercase;letter-spacing:.08em;margin-bottom:3px;font-weight:600}
+    .anno-val{font-size:1.2rem;font-weight:700;margin-bottom:2px}
+    .anno-desc{font-size:.78rem;color:#475569}
+
+    /* WPS explainer */
+    .wps-wrap{
+      background:#ffffff;border:1px solid #e2e8f0;border-radius:16px;
+      padding:32px;margin-bottom:40px;box-shadow:0 1px 4px rgba(0,0,0,.06);
+    }
+    .wps-wrap h2{font-size:1rem;font-weight:600;color:#1e293b;margin-bottom:24px}
+    .wps-row{display:flex;gap:20px;flex-wrap:wrap;align-items:stretch}
+    .wps-box{
+      flex:1;min-width:200px;border-radius:12px;
+      padding:20px;background:#f8fafc;border:1px solid #e2e8f0;
+    }
+    .wps-label{font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:#64748b;margin-bottom:8px;font-weight:600}
+    .wps-title{font-size:1rem;font-weight:700;margin-bottom:10px}
+    .wps-body{font-size:.85rem;color:#334155;line-height:1.6}
+    .wps-formula{
+      margin-top:12px;padding:8px 12px;border-radius:7px;
+      font-family:'SF Mono','Fira Code',monospace;font-size:.8rem;
+    }
+    .vs-badge{
+      display:flex;align-items:center;justify-content:center;
+      font-size:1.2rem;font-weight:700;color:#94a3b8;padding:0 4px;
+      flex-shrink:0;
+    }
+
+    /* Interactive calculator */
+    .calc-wrap{
+      background:#ffffff;border:1px solid #e2e8f0;border-radius:16px;
+      padding:32px;margin-bottom:40px;box-shadow:0 1px 4px rgba(0,0,0,.06);
+    }
+    .calc-wrap h2{font-size:1rem;font-weight:600;color:#1e293b;margin-bottom:6px}
+    .calc-sub{font-size:.82rem;color:#475569;margin-bottom:24px}
+    .sliders{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:20px;margin-bottom:28px}
+    .slider-row{display:flex;flex-direction:column;gap:6px}
+    .slider-row label{font-size:.8rem;color:#475569;display:flex;justify-content:space-between}
+    .slider-row label span{color:#0f172a;font-weight:600}
+    input[type=range]{
+      width:100%;accent-color:#6366f1;background:transparent;cursor:pointer;
+    }
+    .calc-results{
+      display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;
+    }
+    .calc-result{
+      background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;
+      padding:14px 16px;text-align:center;
+    }
+    .calc-result .cr-label{font-size:.7rem;text-transform:uppercase;letter-spacing:.07em;color:#64748b;margin-bottom:6px;font-weight:600}
+    .calc-result .cr-val{font-size:1.4rem;font-weight:700}
+
+    /* Colour tokens */
+    .c-ttfw   {color:#4f46e5}
+    .c-stream {color:#0d9488}
+    .c-ttlw   {color:#d97706}
+    .c-wps    {color:#16a34a}
+    .c-e2e    {color:#ea580c}
+    .c-wc     {color:#7c3aed}
+    .bg-ttfw   {background:rgba(79,70,229,.08);  border-color:#4f46e5}
+    .bg-stream {background:rgba(13,148,136,.08);  border-color:#0d9488}
+    .bg-ttlw   {background:rgba(217,119,6,.08);   border-color:#d97706}
+    .bg-wps    {background:rgba(22,163,74,.08);   border-color:#16a34a}
+    .bg-e2e    {background:rgba(234,88,12,.08);   border-color:#ea580c}
+    .bg-wc     {background:rgba(124,58,237,.08);  border-color:#7c3aed}
+    .bg-formula{background:rgba(79,70,229,.06);border-color:#a5b4fc}
+
+    /* Responsive */
+    @media(max-width:600px){
+      body{padding:24px 16px}
+      .wps-row{flex-direction:column}
+      .vs-badge{transform:rotate(90deg)}
+    }
+  </style>
+</head>
+<body>
+
+<h1>How Real User LLM Performance Metrics Work</h1>
+<p class="page-sub">A visual guide to TTFW, streaming WPS, end-to-end WPS, and how they're measured.</p>
+<p class="page-sub">By <a href="https://www.linkedin.com/in/riteshmaheshwari/" target="_blank" rel="noopener noreferrer" style="color:#6366f1;text-decoration:none;border-bottom:1px solid rgba(99,102,241,.4)">Ritesh Maheshwari</a></p>
+
+<!-- ══════════════════════════════════════════════════════════════════════
+     1. THE REQUEST LIFECYCLE
+═══════════════════════════════════════════════════════════════════════ -->
+<div class="section">
+  <p class="section-label">The request lifecycle</p>
+  <div class="timeline-wrap">
+    <h2>Every conversation is broken into three time segments</h2>
+    <svg class="timeline" viewBox="0 0 800 240" id="tlSvg"></svg>
+    <div class="anno-grid">
+      <div class="anno bg-ttfw">
+        <div class="anno-name c-ttfw">TTFW</div>
+        <div class="anno-val c-ttfw">Time to First Word</div>
+        <div class="anno-desc">Latency from when you hit send to the very first word appearing on screen. Perceived "responsiveness".</div>
+      </div>
+      <div class="anno bg-wps">
+        <div class="anno-name c-wps">Streaming Speed</div>
+        <div class="anno-val c-wps">wordsPerSecond (WPS)</div>
+        <div class="anno-desc">How fast words appear once streaming starts. Measured only over the streaming window — not penalised by TTFW latency. <code style="font-size:.75rem;color:#15803d;background:rgba(22,163,74,.1);padding:1px 4px;border-radius:3px">wordCount / streamingTime</code></div>
+      </div>
+      <div class="anno bg-ttlw">
+        <div class="anno-name c-ttlw">TTLW</div>
+        <div class="anno-val c-ttlw">Time to Last Word</div>
+        <div class="anno-desc">Total wall-clock time from send to the full response being complete. What the user actually waited.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════
+     2. ALL SIX METRICS
+═══════════════════════════════════════════════════════════════════════ -->
+<div class="section">
+  <p class="section-label">All six metrics at a glance</p>
+  <div class="card-grid">
+
+    <div class="card">
+      <div class="card-icon">⏱</div>
+      <div class="card-name">Latency</div>
+      <div class="card-title c-ttfw">TTFW</div>
+      <div class="card-body">How quickly the model starts responding. Lower is better — a model that "thinks" for a long time before writing will have a high TTFW even if it streams fast afterward.</div>
+      <div class="card-formula">measured directly from page events</div>
+    </div>
+
+    <div class="card">
+      <div class="card-icon">⏳</div>
+      <div class="card-name">Total Duration</div>
+      <div class="card-title c-ttlw">TTLW</div>
+      <div class="card-body">Total round-trip time from prompt submission to full response. The number a user feels most directly — "how long did I wait?"</div>
+      <div class="card-formula">measured directly from page events</div>
+    </div>
+
+    <div class="card">
+      <div class="card-icon">🌊</div>
+      <div class="card-name">Generation Window</div>
+      <div class="card-title c-stream">streamingTime</div>
+      <div class="card-body">The pure generation phase — excludes the initial wait. Short streaming durations combined with high TTFW means the model thought for a while then dumped words quickly.</div>
+      <div class="card-formula">TTLW − TTFW</div>
+    </div>
+
+    <div class="card">
+      <div class="card-icon">📝</div>
+      <div class="card-name">Response Size</div>
+      <div class="card-title c-wc">wordCount</div>
+      <div class="card-body">Number of words in the model's response. Critical for interpreting speed metrics — a model with 10 WPS on a 5-word reply is very different from 10 WPS on a 500-word essay.</div>
+      <div class="card-formula">counted from response text</div>
+    </div>
+
+    <div class="card">
+      <div class="card-icon">⚡</div>
+      <div class="card-name">Streaming Speed</div>
+      <div class="card-title c-wps">wordsPerSecond (WPS)</div>
+      <div class="card-body">How fast the model generates once it starts. Measures raw throughput during the streaming window only — not affected by initial latency. High WPS + high TTFW = fast model, slow to start.</div>
+      <div class="card-formula">wordCount / (streamingTime / 1000)</div>
+    </div>
+
+    <div class="card">
+      <div class="card-icon">🔄</div>
+      <div class="card-name">Effective Throughput</div>
+      <div class="card-title c-e2e">endToEndWordsPerSecond</div>
+      <div class="card-body">The user-perceived throughput — words delivered per second of total wait time. Penalises high TTFW. A model with 50 streaming WPS but 5s TTFW will have a much lower E2E WPS.</div>
+      <div class="card-formula">wordCount / (TTLW / 1000)</div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════
+     3. WPS vs E2E WPS
+═══════════════════════════════════════════════════════════════════════ -->
+<div class="section">
+  <p class="section-label">The key distinction</p>
+  <div class="wps-wrap">
+    <h2>wordsPerSecond vs endToEndWordsPerSecond — why both matter</h2>
+    <div class="wps-row">
+      <div class="wps-box">
+        <div class="wps-label">Streaming WPS</div>
+        <div class="wps-title c-wps">Measures the model's engine</div>
+        <div class="wps-body">Calculated only over the <strong style="color:#0d9488">streaming window</strong>. If the model waited 4 seconds then streamed 200 words in 2 seconds, this metric says 100 w/s — fast generation engine.</div>
+        <div class="wps-formula bg-wps" style="background:rgba(22,163,74,.08);border:1px solid #16a34a;color:#15803d">
+          wordCount / streamingSeconds
+        </div>
+      </div>
+      <div class="vs-badge">vs</div>
+      <div class="wps-box">
+        <div class="wps-label">End-to-End WPS</div>
+        <div class="wps-title c-e2e">Measures the user's experience</div>
+        <div class="wps-body">Calculated over the <strong style="color:#ea580c">entire wait</strong> including TTFW latency. Same scenario — 200 words, 6 seconds total — gives just 33 w/s. This is what you actually feel.</div>
+        <div class="wps-formula" style="background:rgba(234,88,12,.08);border:1px solid #ea580c;color:#c2410c">
+          wordCount / totalSeconds
+        </div>
+      </div>
+    </div>
+    <!-- SVG illustration of the gap -->
+    <svg viewBox="0 0 760 130" width="100%" style="margin-top:28px;overflow:visible" id="wpsCompSvg"></svg>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════
+     4. INTERACTIVE CALCULATOR
+═══════════════════════════════════════════════════════════════════════ -->
+<div class="section">
+  <p class="section-label">Interactive example</p>
+  <div class="calc-wrap">
+    <h2>Adjust the sliders to see how metrics relate</h2>
+    <p class="calc-sub">Move TTFW or word count and watch the derived metrics update instantly.</p>
+    <div class="sliders">
+      <div class="slider-row">
+        <label>TTFW <span id="lbl-ttfw">2000 ms</span></label>
+        <input type="range" id="sl-ttfw" min="200" max="8000" step="100" value="2000"/>
+      </div>
+      <div class="slider-row">
+        <label>Streaming duration <span id="lbl-stream">3000 ms</span></label>
+        <input type="range" id="sl-stream" min="100" max="15000" step="100" value="3000"/>
+      </div>
+      <div class="slider-row">
+        <label>Word count <span id="lbl-wc">80 words</span></label>
+        <input type="range" id="sl-wc" min="1" max="400" step="1" value="80"/>
+      </div>
+    </div>
+
+    <!-- Visual bar -->
+    <svg viewBox="0 0 760 80" width="100%" style="overflow:visible;margin-bottom:24px" id="calcSvg"></svg>
+
+    <div class="calc-results">
+      <div class="calc-result">
+        <div class="cr-label">TTLW</div>
+        <div class="cr-val c-ttlw" id="cr-ttlw">—</div>
+      </div>
+      <div class="calc-result">
+        <div class="cr-label">Streaming WPS</div>
+        <div class="cr-val c-wps" id="cr-wps">—</div>
+      </div>
+      <div class="calc-result">
+        <div class="cr-label">E2E WPS</div>
+        <div class="cr-val c-e2e" id="cr-e2e">—</div>
+      </div>
+      <div class="calc-result">
+        <div class="cr-label">WPS / E2E ratio</div>
+        <div class="cr-val" id="cr-ratio" style="color:#a78bfa">—</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════
+     5. WHAT SHAPES EACH METRIC
+═══════════════════════════════════════════════════════════════════════ -->
+<div class="section">
+  <p class="section-label">What drives each metric</p>
+  <div style="background:#ffffff;border:1px solid #e2e8f0;border-radius:16px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.06)">
+    <svg viewBox="0 0 760 420" width="100%" id="factorSvg" style="overflow:visible"></svg>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════ SCRIPTS ═══════════════════════════ -->
+<script>
+// ── Helpers ──────────────────────────────────────────────────────────────────
+function svgEl(tag, attrs={}) {
+  const el = document.createElementNS('http://www.w3.org/2000/svg', tag);
+  Object.entries(attrs).forEach(([k,v]) => el.setAttribute(k, v));
+  return el;
+}
+function svgText(svg, x, y, txt, attrs={}) {
+  const el = svgEl('text', {x,y,'dominant-baseline':'middle','text-anchor':'middle',
+    fill:'#475569','font-size':'12','font-family':'system-ui,sans-serif',...attrs});
+  el.textContent = txt;
+  svg.appendChild(el);
+  return el;
+}
+function svgRect(svg, x, y, w, h, attrs={}) {
+  const el = svgEl('rect', {x,y,width:Math.max(0,w),height:h,...attrs});
+  svg.appendChild(el);
+  return el;
+}
+function svgLine(svg, x1,y1,x2,y2, attrs={}) {
+  const el = svgEl('line', {x1,y1,x2,y2,stroke:'#cbd5e1','stroke-width':'1',...attrs});
+  svg.appendChild(el);
+  return el;
+}
+
+// ── 1. Timeline SVG ───────────────────────────────────────────────────────────
+(function buildTimeline() {
+  const svg = document.getElementById('tlSvg');
+  const W=800, pad=60, barY=80, barH=38, total=W-pad*2;
+
+  // Example proportions: ttfw=30%, streaming=55%, (ttlw=85% total → leaves 15% white)
+  const ttfwPct=0.30, streamPct=0.52, totalPct=0.82;
+  const ttfwW=total*ttfwPct, streamW=total*streamPct;
+
+  // Background track
+  svgRect(svg, pad, barY, total, barH, {rx:'6',fill:'#f1f5f9',stroke:'#e2e8f0','stroke-width':'1'});
+
+  // ttfw segment
+  svgRect(svg, pad, barY, ttfwW, barH, {rx:'6',fill:'rgba(79,70,229,.25)',stroke:'#4f46e5','stroke-width':'1.5'});
+
+  // streaming segment
+  svgRect(svg, pad+ttfwW, barY, streamW, barH, {rx:'6',fill:'rgba(13,148,136,.25)',stroke:'#0d9488','stroke-width':'1.5'});
+
+  // Labels inside bar
+  svgText(svg, pad+ttfwW/2, barY+barH/2, 'TTFW', {fill:'#3730a3','font-weight':'700','font-size':'13'});
+  svgText(svg, pad+ttfwW+streamW/2, barY+barH/2, 'streamingTime', {fill:'#0f766e','font-weight':'700','font-size':'13'});
+
+  // Bracket: ttlwMs
+  const bracketY = barY+barH+18;
+  const bEnd = pad+ttfwW+streamW;
+  svgLine(svg, pad, bracketY, bEnd, bracketY, {stroke:'#d97706','stroke-width':'2'});
+  svgLine(svg, pad, bracketY-6, pad, bracketY+6, {stroke:'#d97706','stroke-width':'2'});
+  svgLine(svg, bEnd, bracketY-6, bEnd, bracketY+6, {stroke:'#d97706','stroke-width':'2'});
+  svgText(svg, pad+(ttfwW+streamW)/2, bracketY+14, 'TTLW  (total wall-clock time)', {fill:'#b45309','font-size':'12','font-weight':'600'});
+
+  // wordCount bracket — spans the streaming segment
+  const wcY = bracketY + 38;
+  const wcStart = pad+ttfwW, wcEnd = pad+ttfwW+streamW;
+  svgLine(svg, wcStart, wcY, wcEnd, wcY, {stroke:'#7c3aed','stroke-width':'2'});
+  [wcStart, wcEnd].forEach(x => svgLine(svg, x, wcY-6, x, wcY+6, {stroke:'#7c3aed','stroke-width':'2'}));
+  svgText(svg, wcStart+(wcEnd-wcStart)/2, wcY+14, 'wordCount  (words delivered during streaming)', {fill:'#6d28d9','font-size':'12','font-weight':'600'});
+
+  // Event markers
+  const markers=[
+    {x:pad,             label:'You press send',  ya:-14},
+    {x:pad+ttfwW,       label:'First word ↓',   ya:-14},
+    {x:pad+ttfwW+streamW, label:'Last word ↓',  ya:-14},
+  ];
+  markers.forEach(m => {
+    svgLine(svg, m.x, barY+m.ya+8, m.x, barY, {stroke:'#94a3b8','stroke-dasharray':'3,3'});
+    svgText(svg, m.x, barY+m.ya, m.label, {fill:'#475569','font-size':'11','text-anchor':'middle'});
+  });
+
+  // "User prompt" arrow
+  const arrowX=pad-18;
+  svgText(svg, arrowX, barY+barH/2, '→', {fill:'#64748b','font-size':'16'});
+})();
+
+
+// ── 3. WPS Comparison SVG ────────────────────────────────────────────────────
+(function buildWpsComp() {
+  const svg = document.getElementById('wpsCompSvg');
+  // Example: ttfw=4000, stream=2000, words=200 → wps=100, e2e=33
+  const W=760, pad=40, barH=28;
+  const total=W-pad*2;
+  const ttfwPct=4/6, streamPct=2/6;
+
+  // Track
+  svgRect(svg,pad,10,total,barH,{rx:'5',fill:'#f1f5f9',stroke:'#e2e8f0','stroke-width':'1'});
+
+  // TTFW region (grey, "wasted" for E2E perspective)
+  svgRect(svg,pad,10,total*ttfwPct,barH,{rx:'5',fill:'rgba(79,70,229,.15)',stroke:'#4f46e5','stroke-width':'1'});
+
+  // Streaming region
+  svgRect(svg,pad+total*ttfwPct,10,total*streamPct,barH,{rx:'5',fill:'rgba(13,148,136,.25)',stroke:'#0d9488','stroke-width':'1'});
+
+  // WPS bracket — only over streaming
+  const bY1=47;
+  svgLine(svg,pad+total*ttfwPct,bY1,pad+total,bY1,{stroke:'#16a34a','stroke-width':'2'});
+  [pad+total*ttfwPct,pad+total].forEach(x=>svgLine(svg,x,bY1-5,x,bY1+5,{stroke:'#16a34a','stroke-width':'2'}));
+  svgText(svg,pad+total*(ttfwPct+streamPct/2),bY1+13,'wordsPerSecond measured here (fast: 100 w/s)',{fill:'#15803d','font-size':'11'});
+
+  // E2E bracket — full width
+  const bY2=83;
+  svgLine(svg,pad,bY2,pad+total,bY2,{stroke:'#ea580c','stroke-width':'2'});
+  [pad,pad+total].forEach(x=>svgLine(svg,x,bY2-5,x,bY2+5,{stroke:'#ea580c','stroke-width':'2'}));
+  svgText(svg,pad+total/2,bY2+13,'endToEndWordsPerSecond measured here (slower: 33 w/s)',{fill:'#c2410c','font-size':'11'});
+
+  // Labels
+  svgText(svg,pad+total*ttfwPct/2,10+barH/2,'waiting (TTFW: 4s)',{fill:'#4338ca','font-size':'11'});
+  svgText(svg,pad+total*ttfwPct+total*streamPct/2,10+barH/2,'streaming (2s)',{fill:'#0f766e','font-size':'11'});
+})();
+
+
+// ── 4. Interactive calculator ─────────────────────────────────────────────────
+function updateCalc() {
+  const ttfw   = +document.getElementById('sl-ttfw').value;
+  const stream = +document.getElementById('sl-stream').value;
+  const wc     = +document.getElementById('sl-wc').value;
+
+  document.getElementById('lbl-ttfw').textContent   = `${ttfw} ms`;
+  document.getElementById('lbl-stream').textContent = `${stream} ms`;
+  document.getElementById('lbl-wc').textContent     = `${wc} words`;
+
+  const ttlw = ttfw + stream;
+  const wps  = wc / (stream / 1000);
+  const e2e  = wc / (ttlw  / 1000);
+  const ratio= wps / e2e;
+
+  document.getElementById('cr-ttlw').textContent  = `${ttlw} ms`;
+  document.getElementById('cr-wps').textContent   = `${Math.round(wps*10)/10} w/s`;
+  document.getElementById('cr-e2e').textContent   = `${Math.round(e2e*10)/10} w/s`;
+  document.getElementById('cr-ratio').textContent = `${Math.round(ratio*10)/10}×`;
+
+  // Draw bar
+  const svg = document.getElementById('calcSvg');
+  while(svg.firstChild) svg.removeChild(svg.firstChild);
+  const W=760, pad=40, barH=32, total=W-pad*2;
+  const ttfwW = (ttfw/ttlw)*total;
+  const streamW = (stream/ttlw)*total;
+
+  svgRect(svg,pad,24,total,barH,{rx:'6',fill:'#f1f5f9',stroke:'#e2e8f0','stroke-width':'1'});
+  svgRect(svg,pad,24,ttfwW,barH,{rx:'6',fill:'rgba(79,70,229,.25)',stroke:'#4f46e5','stroke-width':'1.5'});
+  svgRect(svg,pad+ttfwW,24,streamW,barH,{rx:'6',fill:'rgba(13,148,136,.25)',stroke:'#0d9488','stroke-width':'1.5'});
+
+  if(ttfwW>60)  svgText(svg,pad+ttfwW/2,    24+barH/2,`TTFW ${ttfw}ms`,   {fill:'#3730a3','font-size':'11','font-weight':'700'});
+  if(streamW>80) svgText(svg,pad+ttfwW+streamW/2,24+barH/2,`streamingTime ${stream}ms`,{fill:'#0f766e','font-size':'11','font-weight':'700'});
+
+  // ttlw label
+  svgText(svg,W/2,68,`TTLW = ${ttlw} ms`,{fill:'#b45309','font-size':'11','font-weight':'600'});
+  svgLine(svg,pad,62,pad+total,62,{stroke:'#d97706','stroke-width':'1.5'});
+  [pad,pad+total].forEach(x=>svgLine(svg,x,57,x,67,{stroke:'#d97706','stroke-width':'1.5'}));
+}
+
+['sl-ttfw','sl-stream','sl-wc'].forEach(id=>document.getElementById(id).addEventListener('input',updateCalc));
+updateCalc();
+
+
+// ── 5. Factors diagram ────────────────────────────────────────────────────────
+(function buildFactors() {
+  const svg = document.getElementById('factorSvg');
+  const W=760, H=420;
+
+  // Title
+  svgText(svg, W/2, 22, 'What influences each metric', {fill:'#1e293b','font-size':'14','font-weight':'600'});
+
+  // Columns: Factors → Metric → Meaning
+  const cols = [110, 380, 640];
+  const colTitles = ['Input factors', 'Metric', 'What it tells you'];
+  colTitles.forEach((t,i) => svgText(svg,cols[i],52,t,{fill:'#64748b','font-size':'11','text-transform':'uppercase'}));
+
+  const rows = [
+    {
+      factors:['Network RTT','Server load','Model size'],
+      metric:'TTFW', mColor:'#4f46e5',
+      meaning:'Perceived responsiveness\n"How snappy does it feel?"',
+      y:100,
+    },
+    {
+      factors:['Token budget','Model speed','Batch size'],
+      metric:'streamingTime', mColor:'#0d9488',
+      meaning:'Raw generation time\n"How long did it write?"',
+      y:190,
+    },
+    {
+      factors:['Prompt complexity','System prompt','Temperature'],
+      metric:'wordsPerSecond', mColor:'#16a34a',
+      meaning:'Engine throughput\n"How fast when streaming?"',
+      y:280,
+    },
+    {
+      factors:['All of the above'],
+      metric:'endToEndWPS', mColor:'#ea580c',
+      meaning:'User-felt efficiency\n"Words per second I waited for"',
+      y:360,
+    },
+  ];
+
+  rows.forEach(row => {
+    const {factors,metric,mColor,meaning,y} = row;
+
+    // Factor pills
+    factors.forEach((f,i) => {
+      const fy = y + i*20 - (factors.length-1)*10;
+      // Pill bg
+      const pw=140, ph=18;
+      svgRect(svg, cols[0]-pw/2, fy-ph/2, pw, ph, {rx:'9',fill:'#f1f5f9',stroke:'#e2e8f0'});
+      svgText(svg, cols[0], fy, f, {fill:'#334155','font-size':'11'});
+      // Arrow to metric
+      svgLine(svg, cols[0]+pw/2+4, fy, cols[1]-58, y, {stroke:'#cbd5e1','stroke-width':'1','stroke-dasharray':'3,2'});
+    });
+
+    // Metric badge
+    svgRect(svg, cols[1]-55, y-16, 110, 32, {rx:'8',fill:`rgba(${hexToRgb(mColor)},.12)`,stroke:mColor,'stroke-width':'1.5'});
+    svgText(svg, cols[1], y, metric, {fill:mColor,'font-size':'12','font-weight':'700'});
+
+    // Arrow to meaning
+    svgLine(svg, cols[1]+56, y, cols[2]-100, y, {stroke:'#cbd5e1','stroke-width':'1','stroke-dasharray':'3,2'});
+
+    // Meaning text (wrap at \n)
+    const lines=meaning.split('\n');
+    lines.forEach((l,i)=>svgText(svg,cols[2],y+(i-0.4)*16,l,{fill:i===0?'#1e293b':'#64748b','font-size':i===0?'12':'11','text-anchor':'start',x:cols[2]-90}));
+  });
+
+  function hexToRgb(hex) {
+    const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);
+    return `${r},${g},${b}`;
+  }
+})();
+</script>
+</body>
+</html>
