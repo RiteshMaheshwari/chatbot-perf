@@ -1,14 +1,30 @@
 (function () {
   "use strict";
 
+  const core = globalThis.LlmTimingCore;
+  const overlayApi = globalThis.LlmTimingOverlay;
+
+  if (!core || !overlayApi) {
+    console.error("[LLM TTFW Tracker] Missing content dependencies.");
+    return;
+  }
+
+  const {
+    countWords,
+    createMeasurementTracker,
+    createSessionId,
+    normalizeText,
+    stripMeasurementNoise,
+    truncateText
+  } = core;
+  const { createOverlayController } = overlayApi;
+
   const STORAGE_KEY = "chatgpt_ttfw_samples";
   const OVERLAY_SETTINGS_KEY = "chatgpt_ttfw_overlay_settings";
   const MAX_SAMPLES = 200;
   const HARD_TIMEOUT_MS = 120000;
   const DEBUG = false;
-  const SESSION_ID = typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
-    ? crypto.randomUUID()
-    : `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  const SESSION_ID = createSessionId();
   const SITE = window.location.hostname.includes("claude.ai")
     ? "claude"
     : window.location.hostname.includes("perplexity.ai")
@@ -72,30 +88,43 @@
       completionSettleMs: 1500
     }
   }[SITE];
-  const MIN_VISIBLE_OPACITY = 0.75;
-  const COMPLETION_SETTLE_MS = SITE_CONFIG.completionSettleMs;
-  const POLL_MS = 100;
   const DEFAULT_OVERLAY_SETTINGS = {
     enabled: true,
     left: null,
     top: 16
   };
+  const MIN_VISIBLE_OPACITY = 0.75;
+  const POLL_MS = 100;
 
-  let activeRun = null;
+  const tracker = createMeasurementTracker({
+    completionSettleMs: SITE_CONFIG.completionSettleMs,
+    hardTimeoutMs: HARD_TIMEOUT_MS,
+    now: nowMs
+  });
+
   let processTimer = null;
   let pollTimer = null;
-  let hardTimeoutTimer = null;
   let lastSubmitAt = 0;
   let lastComposerText = "";
   let latestSample = null;
   let overlaySample = null;
   let overlaySettings = { ...DEFAULT_OVERLAY_SETTINGS };
-  let overlayRoot = null;
-  let overlayRefs = null;
+
+  const overlay = createOverlayController({
+    siteName: SITE_CONFIG.name,
+    title: "TTFW Overlay",
+    defaultSettings: DEFAULT_OVERLAY_SETTINGS,
+    onHide: () => {
+      void saveOverlaySettings({ enabled: false });
+    },
+    onPositionChange: (position) => {
+      void saveOverlaySettings(position);
+    }
+  });
 
   function debugLog(...args) {
     if (DEBUG) {
-      console.debug("[ChatGPT TTFW]", ...args);
+      console.debug("[LLM TTFW Tracker]", ...args);
     }
   }
 
@@ -107,6 +136,7 @@
     if (!selector) {
       return [];
     }
+
     return Array.from(root.querySelectorAll(selector));
   }
 
@@ -114,6 +144,7 @@
     if (!selector) {
       return null;
     }
+
     return root.querySelector(selector);
   }
 
@@ -145,15 +176,6 @@
     return Number(value).toFixed(2);
   }
 
-  function truncateText(text, maxLength) {
-    const normalized = normalizeText(text);
-    if (normalized.length <= maxLength) {
-      return normalized;
-    }
-
-    return `${normalized.slice(0, maxLength - 1)}...`;
-  }
-
   function normalizeOverlaySettings(raw) {
     return {
       enabled: raw?.enabled === undefined ? DEFAULT_OVERLAY_SETTINGS.enabled : Boolean(raw?.enabled),
@@ -177,23 +199,27 @@
     );
   }
 
-  function normalizeText(text) {
-    return (text || "").replace(/\s+/g, " ").trim();
+  function getMessageRoot(message) {
+    if (!message) {
+      return null;
+    }
+
+    return SITE_CONFIG.assistantTurnSelector && message.matches?.(SITE_CONFIG.assistantTurnSelector)
+      ? queryOne(SITE_CONFIG.assistantMessageSelector, message) || message
+      : message;
   }
 
-  function stripMeasurementNoise(text) {
-    return normalizeText(text)
-      .replace(/\b(ChatGPT said:|You said:|Searching the web|Working)\b/gi, "")
-      .replace(/\s+/g, " ")
-      .trim();
-  }
+  function getMeasurementRoot(message) {
+    const messageRoot = getMessageRoot(message);
+    if (!messageRoot) {
+      return null;
+    }
 
-  function wordMatches(text) {
-    return normalizeText(text).match(/[\p{L}\p{N}]+(?:['’-][\p{L}\p{N}]+)*/gu) || [];
-  }
+    if (!SITE_CONFIG.requireMarkdownRoot) {
+      return messageRoot;
+    }
 
-  function countWords(text) {
-    return wordMatches(text).length;
+    return queryOne(SITE_CONFIG.markdownContentSelector, messageRoot);
   }
 
   function getModelSlug(message) {
@@ -211,19 +237,6 @@
 
     const nestedAttr = messageRoot.querySelector?.("[data-message-model-slug]");
     return nestedAttr?.getAttribute("data-message-model-slug") || SITE_CONFIG.defaultModel;
-  }
-
-  function getMeasurementRoot(message) {
-    const messageRoot = getMessageRoot(message);
-    if (!messageRoot) {
-      return null;
-    }
-
-    if (!SITE_CONFIG.requireMarkdownRoot) {
-      return messageRoot;
-    }
-
-    return queryOne(SITE_CONFIG.markdownContentSelector, messageRoot);
   }
 
   function getConnectionInfo() {
@@ -255,13 +268,12 @@
       ...overlaySettings,
       ...patch
     });
+    overlay.setSettings(overlaySettings);
     await getStorageArea().set({ [OVERLAY_SETTINGS_KEY]: overlaySettings });
   }
 
   function getVisibleComposer() {
-    const candidates = queryAll(SITE_CONFIG.composerSelector)
-      .filter(isVisible);
-
+    const candidates = queryAll(SITE_CONFIG.composerSelector).filter(isVisible);
     candidates.sort((a, b) => b.getBoundingClientRect().bottom - a.getBoundingClientRect().bottom);
     return candidates[0] || null;
   }
@@ -311,11 +323,7 @@
   }
 
   function isSendButton(button) {
-    if (!button || !isVisible(button)) {
-      return false;
-    }
-
-    if (button.disabled) {
+    if (!button || !isVisible(button) || button.disabled) {
       return false;
     }
 
@@ -341,8 +349,7 @@
     const selector = SITE_CONFIG.sendButtonSelector
       ? `${SITE_CONFIG.sendButtonSelector}, button`
       : "button";
-    const hasStopButton = queryAll(selector).some(isStopButton);
-    if (hasStopButton) {
+    if (queryAll(selector).some(isStopButton)) {
       return true;
     }
 
@@ -354,21 +361,17 @@
   }
 
   function getAssistantContainers() {
-    const turnArticles = queryAll(SITE_CONFIG.assistantTurnSelector)
-      .filter(isVisible);
-
+    const turnArticles = queryAll(SITE_CONFIG.assistantTurnSelector).filter(isVisible);
     if (turnArticles.length > 0) {
       return turnArticles;
     }
 
-    const explicitRole = queryAll(SITE_CONFIG.assistantMessageSelector)
-      .filter(isVisible);
-
+    const explicitRole = queryAll(SITE_CONFIG.assistantMessageSelector).filter(isVisible);
     if (explicitRole.length > 0) {
       return explicitRole;
     }
 
-    const articleFallback = Array.from(document.querySelectorAll("article"))
+    return Array.from(document.querySelectorAll("article"))
       .filter(isVisible)
       .filter((article) => {
         const labels = normalizeText(
@@ -385,11 +388,9 @@
 
         return labels.includes("assistant") || labels.includes("copy");
       });
-
-    return articleFallback;
   }
 
-  function getMessageText(message) {
+  function getMeasuredText(message) {
     const measurementRoot = getMeasurementRoot(message);
     if (!measurementRoot) {
       return "";
@@ -413,16 +414,6 @@
     }
 
     return stripMeasurementNoise(text);
-  }
-
-  function getMessageRoot(message) {
-    if (!message) {
-      return null;
-    }
-
-    return SITE_CONFIG.assistantTurnSelector && message.matches?.(SITE_CONFIG.assistantTurnSelector)
-      ? queryOne(SITE_CONFIG.assistantMessageSelector, message) || message
-      : message;
   }
 
   function hasVisibleTextRect(textNode) {
@@ -452,13 +443,13 @@
     return true;
   }
 
-  function getVisibleMessageText(message) {
-    const messageRoot = getMeasurementRoot(message);
-    if (!messageRoot) {
+  function getVisibleMeasuredText(message) {
+    const measurementRoot = getMeasurementRoot(message);
+    if (!measurementRoot) {
       return "";
     }
 
-    const walker = document.createTreeWalker(messageRoot, NodeFilter.SHOW_TEXT);
+    const walker = document.createTreeWalker(measurementRoot, NodeFilter.SHOW_TEXT);
     const parts = [];
 
     let currentNode = walker.nextNode();
@@ -468,7 +459,7 @@
         parent &&
         normalizeText(currentNode.textContent).length > 0 &&
         isVisible(parent) &&
-        isElementActuallyVisible(parent, messageRoot) &&
+        isElementActuallyVisible(parent, measurementRoot) &&
         hasVisibleTextRect(currentNode)
       ) {
         parts.push(currentNode.textContent || "");
@@ -492,384 +483,9 @@
     return Boolean(queryOne(SITE_CONFIG.streamingContentSelector, candidate));
   }
 
-  function ensureOverlayStyles() {
-    if (document.getElementById("chatgpt-ttfw-overlay-style")) {
-      return;
-    }
-
-    const style = document.createElement("style");
-    style.id = "chatgpt-ttfw-overlay-style";
-    style.textContent = `
-      #chatgpt-ttfw-overlay {
-        position: fixed;
-        z-index: 2147483647;
-        width: 320px;
-        max-width: calc(100vw - 16px);
-        color: #e8eef7;
-        background:
-          radial-gradient(circle at top left, rgba(94, 234, 212, 0.18), transparent 38%),
-          linear-gradient(180deg, rgba(12, 18, 31, 0.96) 0%, rgba(20, 28, 43, 0.96) 100%);
-        border: 1px solid rgba(148, 163, 184, 0.22);
-        border-radius: 16px;
-        box-shadow: 0 24px 56px rgba(2, 6, 23, 0.42);
-        backdrop-filter: blur(16px);
-        font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-        overflow: hidden;
-        user-select: none;
-      }
-
-      #chatgpt-ttfw-overlay * {
-        box-sizing: border-box;
-      }
-
-      #chatgpt-ttfw-overlay[data-status="streaming"] {
-        border-color: rgba(45, 212, 191, 0.55);
-      }
-
-      #chatgpt-ttfw-overlay[data-status="waiting"] {
-        border-color: rgba(250, 204, 21, 0.45);
-      }
-
-      #chatgpt-ttfw-overlay .ttfw-header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 12px;
-        padding: 12px 14px;
-        cursor: move;
-        background: rgba(15, 23, 42, 0.36);
-        border-bottom: 1px solid rgba(148, 163, 184, 0.12);
-      }
-
-      #chatgpt-ttfw-overlay .ttfw-title-wrap {
-        min-width: 0;
-      }
-
-      #chatgpt-ttfw-overlay .ttfw-eyebrow {
-        font-size: 10px;
-        line-height: 1.3;
-        font-weight: 800;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-        color: #8fb5d8;
-      }
-
-      #chatgpt-ttfw-overlay .ttfw-title {
-        margin-top: 2px;
-        font-size: 14px;
-        line-height: 1.35;
-        font-weight: 700;
-        color: #f8fafc;
-      }
-
-      #chatgpt-ttfw-overlay .ttfw-hide {
-        appearance: none;
-        border: 0;
-        background: rgba(148, 163, 184, 0.12);
-        color: #dbe7f5;
-        border-radius: 999px;
-        padding: 7px 10px;
-        font: inherit;
-        font-size: 11px;
-        font-weight: 700;
-        cursor: pointer;
-      }
-
-      #chatgpt-ttfw-overlay .ttfw-body {
-        padding: 14px;
-        display: grid;
-        gap: 12px;
-      }
-
-      #chatgpt-ttfw-overlay .ttfw-status-row {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 12px;
-      }
-
-      #chatgpt-ttfw-overlay .ttfw-label {
-        font-size: 10px;
-        line-height: 1.3;
-        font-weight: 800;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-        color: #8fb5d8;
-      }
-
-      #chatgpt-ttfw-overlay .ttfw-status-value {
-        font-size: 13px;
-        font-weight: 700;
-        color: #f8fafc;
-      }
-
-      #chatgpt-ttfw-overlay .ttfw-prompt {
-        font-size: 12px;
-        line-height: 1.45;
-        color: #dbe7f5;
-        min-height: 34px;
-      }
-
-      #chatgpt-ttfw-overlay .ttfw-grid {
-        display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: 8px;
-      }
-
-      #chatgpt-ttfw-overlay .ttfw-card {
-        background: rgba(148, 163, 184, 0.08);
-        border: 1px solid rgba(148, 163, 184, 0.12);
-        border-radius: 12px;
-        padding: 10px;
-      }
-
-      #chatgpt-ttfw-overlay .ttfw-card-value {
-        margin-top: 4px;
-        font-size: 14px;
-        line-height: 1.35;
-        font-weight: 700;
-        color: #f8fafc;
-      }
-
-      #chatgpt-ttfw-overlay .ttfw-section {
-        display: grid;
-        gap: 5px;
-      }
-
-      #chatgpt-ttfw-overlay .ttfw-summary {
-        font-size: 12px;
-        line-height: 1.45;
-        color: #dbe7f5;
-      }
-    `;
-    document.documentElement.appendChild(style);
-  }
-
-  function clampOverlayPosition(left, top) {
-    if (!overlayRoot) {
-      return { left, top };
-    }
-
-    const width = overlayRoot.offsetWidth || 320;
-    const height = overlayRoot.offsetHeight || 220;
-    return {
-      left: Math.min(Math.max(8, left), Math.max(8, window.innerWidth - width - 8)),
-      top: Math.min(Math.max(8, top), Math.max(8, window.innerHeight - height - 8))
-    };
-  }
-
-  function applyOverlayPosition() {
-    if (!overlayRoot) {
-      return;
-    }
-
-    const width = overlayRoot.offsetWidth || 320;
-    const defaultLeft = Math.max(8, window.innerWidth - width - 16);
-    const desiredLeft = overlaySettings.left ?? defaultLeft;
-    const desiredTop = overlaySettings.top ?? DEFAULT_OVERLAY_SETTINGS.top;
-    const position = clampOverlayPosition(desiredLeft, desiredTop);
-
-    overlaySettings.left = position.left;
-    overlaySettings.top = position.top;
-    overlayRoot.style.left = `${position.left}px`;
-    overlayRoot.style.top = `${position.top}px`;
-  }
-
-  function updateOverlay() {
-    if (!overlayRoot || !overlayRefs) {
-      return;
-    }
-
-    let status = "idle";
-    let statusText = latestSample ? "Idle" : "Armed";
-    let promptText = "Waiting for the next prompt on this page.";
-    let elapsedText = "-";
-    let firstWordText = "-";
-    let wordCountText = "-";
-
-    if (activeRun) {
-      const elapsed = nowMs() - activeRun.startedAt;
-      const firstWordDelay = activeRun.firstWordAt ? activeRun.firstWordAt - activeRun.startedAt : null;
-      const candidateStreaming = candidateLooksStreaming(activeRun.trackedElement);
-      status = activeRun.firstWordAt
-        ? (generationLooksActive() || candidateStreaming ? "streaming" : "finishing")
-        : "waiting";
-      statusText =
-        status === "streaming" ? "Streaming" :
-        status === "finishing" ? "Finishing" :
-        "Waiting for first word";
-      promptText = truncateText(activeRun.promptPreview || "Prompt submitted.", 120);
-      elapsedText = formatMs(elapsed);
-      firstWordText = firstWordDelay ? formatMs(firstWordDelay) : "...";
-      wordCountText = String(activeRun.visibleWordCount || 0);
-    } else if (overlaySample) {
-      status = "complete";
-      statusText = "Complete";
-      promptText = truncateText(overlaySample.promptPreview || "Last completed prompt.", 120);
-      elapsedText = formatMs(overlaySample.ttlwMs);
-      firstWordText = formatMs(overlaySample.ttfwMs);
-      wordCountText = String(overlaySample.wordCount || 0);
-    }
-
-    const latestSummary = latestSample
-      ? `Last run: ${latestSample.site || SITE} | ${latestSample.model || "unknown"} | TTFW ${formatMs(latestSample.ttfwMs)} | TTLW ${formatMs(latestSample.ttlwMs)} | ${latestSample.wordCount} words | ${formatNumber(latestSample.wordsPerSecond)} wps`
-      : "No completed runs captured yet.";
-
-    overlayRoot.dataset.status = status;
-    overlayRefs.status.textContent = statusText;
-    overlayRefs.prompt.textContent = promptText;
-    overlayRefs.elapsed.textContent = elapsedText;
-    overlayRefs.firstWord.textContent = firstWordText;
-    overlayRefs.words.textContent = wordCountText;
-    overlayRefs.latest.textContent = latestSummary;
-  }
-
-  function destroyOverlay() {
-    overlayRoot?.remove();
-    overlayRoot = null;
-    overlayRefs = null;
-  }
-
-  function attachOverlayDrag(header) {
-    let dragState = null;
-
-    header.addEventListener("pointerdown", (event) => {
-      if (event.button !== 0) {
-        return;
-      }
-
-      const target = event.target;
-      if (target instanceof Element && target.closest("button")) {
-        return;
-      }
-
-      if (!overlayRoot) {
-        return;
-      }
-
-      dragState = {
-        startX: event.clientX,
-        startY: event.clientY,
-        left: overlaySettings.left ?? overlayRoot.offsetLeft,
-        top: overlaySettings.top ?? overlayRoot.offsetTop
-      };
-
-      window.addEventListener("pointermove", onPointerMove);
-      window.addEventListener("pointerup", onPointerUp);
-      window.addEventListener("pointercancel", onPointerUp);
-      event.preventDefault();
-    });
-
-    function onPointerMove(event) {
-      if (!dragState) {
-        return;
-      }
-
-      const next = clampOverlayPosition(
-        dragState.left + (event.clientX - dragState.startX),
-        dragState.top + (event.clientY - dragState.startY)
-      );
-
-      overlaySettings.left = next.left;
-      overlaySettings.top = next.top;
-      applyOverlayPosition();
-    }
-
-    async function onPointerUp() {
-      if (!dragState) {
-        return;
-      }
-
-      dragState = null;
-      window.removeEventListener("pointermove", onPointerMove);
-      window.removeEventListener("pointerup", onPointerUp);
-      window.removeEventListener("pointercancel", onPointerUp);
-      await saveOverlaySettings({
-        left: overlaySettings.left,
-        top: overlaySettings.top
-      });
-    }
-  }
-
-  function ensureOverlay() {
-    if (overlayRoot) {
-      return;
-    }
-
-    ensureOverlayStyles();
-
-    overlayRoot = document.createElement("section");
-    overlayRoot.id = "chatgpt-ttfw-overlay";
-    overlayRoot.innerHTML = `
-      <div class="ttfw-header">
-        <div class="ttfw-title-wrap">
-          <div class="ttfw-eyebrow">${SITE_CONFIG.name} UI Timing</div>
-          <div class="ttfw-title">TTFW Overlay</div>
-        </div>
-        <button class="ttfw-hide" type="button">Hide</button>
-      </div>
-      <div class="ttfw-body">
-        <div class="ttfw-status-row">
-          <span class="ttfw-label">Status</span>
-          <strong class="ttfw-status-value">Armed</strong>
-        </div>
-        <div class="ttfw-prompt">Waiting for the next prompt on this page.</div>
-        <div class="ttfw-grid">
-          <div class="ttfw-card">
-            <div class="ttfw-label">Elapsed</div>
-            <div class="ttfw-card-value" data-field="elapsed">-</div>
-          </div>
-          <div class="ttfw-card">
-            <div class="ttfw-label">First Word</div>
-            <div class="ttfw-card-value" data-field="first-word">-</div>
-          </div>
-          <div class="ttfw-card">
-            <div class="ttfw-label">Words</div>
-            <div class="ttfw-card-value" data-field="words">-</div>
-          </div>
-        </div>
-        <div class="ttfw-section">
-          <div class="ttfw-label">Latest Completed</div>
-          <div class="ttfw-summary">No completed runs captured yet.</div>
-        </div>
-      </div>
-    `;
-
-    document.documentElement.appendChild(overlayRoot);
-    overlayRefs = {
-      status: overlayRoot.querySelector(".ttfw-status-value"),
-      prompt: overlayRoot.querySelector(".ttfw-prompt"),
-      elapsed: overlayRoot.querySelector("[data-field='elapsed']"),
-      firstWord: overlayRoot.querySelector("[data-field='first-word']"),
-      words: overlayRoot.querySelector("[data-field='words']"),
-      latest: overlayRoot.querySelector(".ttfw-summary"),
-      hide: overlayRoot.querySelector(".ttfw-hide"),
-      header: overlayRoot.querySelector(".ttfw-header")
-    };
-
-    overlayRefs.hide.addEventListener("click", () => {
-      void saveOverlaySettings({ enabled: false });
-    });
-
-    attachOverlayDrag(overlayRefs.header);
-    applyOverlayPosition();
-    updateOverlay();
-  }
-
-  function syncOverlayVisibility() {
-    if (overlaySettings.enabled) {
-      ensureOverlay();
-      applyOverlayPosition();
-      updateOverlay();
-      return;
-    }
-
-    destroyOverlay();
-  }
-
   function captureAssistantSnapshot() {
     return getAssistantContainers().map((element) => {
-      const text = getMessageText(element);
+      const text = getMeasuredText(element);
       return {
         element,
         turnId: element.getAttribute("data-turn-id") || element.getAttribute("data-message-id") || "",
@@ -880,16 +496,13 @@
   }
 
   function getBaselineRecord(run, element) {
+    const baselineAssistants = run.metadata?.baselineAssistants || [];
     const turnId = element.getAttribute("data-turn-id") || element.getAttribute("data-message-id") || "";
-    return (
-      run.baselineAssistants.find((entry) => entry.element === element || (turnId && entry.turnId === turnId)) ||
-      null
-    );
+    return baselineAssistants.find((entry) => entry.element === element || (turnId && entry.turnId === turnId)) || null;
   }
 
   function getLatestUserTurn() {
-    const turns = queryAll(SITE_CONFIG.userTurnSelector).filter(isVisible);
-    return turns.at(-1) || null;
+    return queryAll(SITE_CONFIG.userTurnSelector).filter(isVisible).at(-1) || null;
   }
 
   function getConversationTurns() {
@@ -898,14 +511,14 @@
 
   function getAssistantTurnsAfterSubmittedUser(run) {
     const turns = getConversationTurns();
+    const baselineUserTurnId = run.metadata?.baselineUserTurnId || "";
     let startIndex = 0;
 
-    if (run.baselineUserTurnId) {
+    if (baselineUserTurnId) {
       const baselineIndex = turns.findIndex(
         (turn) => turn.getAttribute("data-turn") === "user" &&
-          (turn.getAttribute("data-turn-id") || "") === run.baselineUserTurnId
+          (turn.getAttribute("data-turn-id") || "") === baselineUserTurnId
       );
-
       if (baselineIndex >= 0) {
         startIndex = baselineIndex + 1;
       }
@@ -918,7 +531,7 @@
       const turnType = turn.getAttribute("data-turn");
       const turnId = turn.getAttribute("data-turn-id") || "";
 
-      if (turnType === "user" && turnId && turnId !== run.baselineUserTurnId) {
+      if (turnType === "user" && turnId && turnId !== baselineUserTurnId) {
         sawNewUserTurn = true;
         continue;
       }
@@ -951,7 +564,7 @@
 
     for (let index = candidates.length - 1; index >= 0; index -= 1) {
       const assistant = candidates[index];
-      if (run.trackedElement === assistant) {
+      if (run.metadata?.trackedElement === assistant) {
         return assistant;
       }
 
@@ -960,7 +573,7 @@
         return assistant;
       }
 
-      const text = getMessageText(assistant);
+      const text = getMeasuredText(assistant);
       const words = countWords(text);
       if (words > baseline.wordCount || text.length > baseline.textLength) {
         return assistant;
@@ -970,14 +583,100 @@
     return null;
   }
 
-  function resetActiveRun(reason) {
-    debugLog("reset run", reason, activeRun);
-    activeRun = null;
-    clearTimeout(processTimer);
-    clearTimeout(hardTimeoutTimer);
-    processTimer = null;
-    hardTimeoutTimer = null;
-    updateOverlay();
+  function buildObservation(candidate) {
+    const text = getMeasuredText(candidate);
+    const visibleText = getVisibleMeasuredText(candidate);
+
+    return {
+      candidateId: candidate.getAttribute("data-turn-id") || candidate.getAttribute("data-message-id") || "",
+      totalWordCount: countWords(text),
+      visibleWordCount: countWords(visibleText),
+      modelSlug: getModelSlug(candidate),
+      candidateStreaming: candidateLooksStreaming(candidate)
+    };
+  }
+
+  function buildPersistedSample(run, metrics, reason) {
+    const context = run.metadata?.context || {};
+
+    return {
+      id: metrics.id,
+      sessionId: SESSION_ID,
+      site: SITE,
+      model: metrics.modelSlug || "unknown",
+      hostname: context.hostname || window.location.hostname,
+      url: location.href,
+      title: document.title,
+      startedAt: new Date(metrics.startedWallClock).toISOString(),
+      locale: context.locale || null,
+      timezone: context.timezone || null,
+      utcOffsetMinutes: context.utcOffsetMinutes ?? null,
+      visibilityStateAtStart: context.visibilityStateAtStart || null,
+      wasPageVisibleAtStart: context.wasPageVisibleAtStart ?? null,
+      onlineAtStart: context.onlineAtStart ?? null,
+      connectionEffectiveType: context.connectionEffectiveType ?? null,
+      connectionRttMs: context.connectionRttMs ?? null,
+      connectionDownlinkMbps: context.connectionDownlinkMbps ?? null,
+      connectionSaveData: context.connectionSaveData ?? null,
+      promptPreview: run.promptPreview,
+      inputWords: run.inputWordCount,
+      ttfwMs: metrics.ttfwMs,
+      ttlwMs: metrics.ttlwMs,
+      streamingMs: metrics.streamingMs,
+      wordCount: metrics.wordCount,
+      wordsPerSecond: metrics.wordsPerSecond,
+      endToEndWordsPerSecond: metrics.endToEndWordsPerSecond,
+      reason
+    };
+  }
+
+  function updateOverlay() {
+    const activeRun = tracker.getActiveRun();
+    let status = "idle";
+    let statusText = latestSample ? "Idle" : "Armed";
+    let promptText = "Waiting for the next prompt on this page.";
+    let elapsedText = "-";
+    let firstWordText = "-";
+    let wordCountText = "-";
+
+    if (activeRun) {
+      const elapsed = nowMs() - activeRun.startedAt;
+      const firstWordDelay = activeRun.firstWordAt ? activeRun.firstWordAt - activeRun.startedAt : null;
+      const candidateStreaming = candidateLooksStreaming(activeRun.metadata?.trackedElement);
+
+      status = activeRun.firstWordAt
+        ? (generationLooksActive() || candidateStreaming ? "streaming" : "finishing")
+        : "waiting";
+      statusText =
+        status === "streaming" ? "Streaming" :
+        status === "finishing" ? "Finishing" :
+        "Waiting for first word";
+      promptText = truncateText(activeRun.promptPreview || "Prompt submitted.", 120);
+      elapsedText = formatMs(elapsed);
+      firstWordText = firstWordDelay ? formatMs(firstWordDelay) : "...";
+      wordCountText = String(activeRun.visibleWordCount || 0);
+    } else if (overlaySample) {
+      status = "complete";
+      statusText = "Complete";
+      promptText = truncateText(overlaySample.promptPreview || "Last completed prompt.", 120);
+      elapsedText = formatMs(overlaySample.ttlwMs);
+      firstWordText = formatMs(overlaySample.ttfwMs);
+      wordCountText = String(overlaySample.wordCount || 0);
+    }
+
+    const latestSummary = latestSample
+      ? `Last run: ${latestSample.site || SITE} | ${latestSample.model || "unknown"} | TTFW ${formatMs(latestSample.ttfwMs)} | TTLW ${formatMs(latestSample.ttlwMs)} | ${latestSample.wordCount} words | ${formatNumber(latestSample.wordsPerSecond)} wps`
+      : "No completed runs captured yet.";
+
+    overlay.render({
+      status,
+      statusText,
+      promptText,
+      elapsedText,
+      firstWordText,
+      wordCountText,
+      latestSummary
+    });
   }
 
   async function persistSample(sample) {
@@ -988,65 +687,22 @@
     await storage.set({ [STORAGE_KEY]: next });
   }
 
-  async function finalizeRun(reason) {
-    if (!activeRun) {
+  async function handleCompletedRun(result) {
+    if (!result.metrics) {
+      updateOverlay();
       return;
     }
 
-    const run = activeRun;
-
-    if (!run.firstWordAt || !run.completedAt || run.finalWordCount === 0) {
-      resetActiveRun(reason);
-      debugLog("discarding incomplete run", reason, run);
-      return;
-    }
-
-    const ttfwMs = Math.round(run.firstWordAt - run.startedAt);
-    const ttlwMs = Math.round(run.completedAt - run.startedAt);
-    const streamingMs = Math.max(1, Math.round(run.completedAt - run.firstWordAt));
-    const wordsPerSecond = Number((run.finalWordCount / (streamingMs / 1000)).toFixed(2));
-    const endToEndWordsPerSecond = Number((run.finalWordCount / (ttlwMs / 1000)).toFixed(2));
-
-    const sample = {
-      id: run.id,
-      sessionId: SESSION_ID,
-      site: SITE,
-      model: run.modelSlug || "unknown",
-      hostname: run.context.hostname,
-      url: location.href,
-      title: document.title,
-      startedAt: new Date(run.startedWallClock).toISOString(),
-      locale: run.context.locale,
-      timezone: run.context.timezone,
-      utcOffsetMinutes: run.context.utcOffsetMinutes,
-      visibilityStateAtStart: run.context.visibilityStateAtStart,
-      wasPageVisibleAtStart: run.context.wasPageVisibleAtStart,
-      onlineAtStart: run.context.onlineAtStart,
-      connectionEffectiveType: run.context.connectionEffectiveType,
-      connectionRttMs: run.context.connectionRttMs,
-      connectionDownlinkMbps: run.context.connectionDownlinkMbps,
-      connectionSaveData: run.context.connectionSaveData,
-      promptPreview: run.promptPreview,
-      inputWords: run.inputWordCount,
-      ttfwMs,
-      ttlwMs,
-      streamingMs,
-      wordCount: run.finalWordCount,
-      wordsPerSecond,
-      endToEndWordsPerSecond,
-      reason
-    };
-
+    const sample = buildPersistedSample(result.run, result.metrics, result.reason);
     debugLog("persist sample", sample);
     overlaySample = sample;
     latestSample = sample;
-    resetActiveRun(reason);
     updateOverlay();
     await persistSample(sample);
   }
 
   function scheduleProcess(delay = 0) {
-    if (!activeRun) {
+    if (!tracker.getActiveRun()) {
       return;
     }
 
@@ -1055,61 +711,33 @@
   }
 
   function processActiveRun() {
-    if (!activeRun) {
+    const timeoutResult = tracker.checkTimeout();
+    if (timeoutResult) {
+      debugLog("discarding incomplete run", timeoutResult.reason, timeoutResult.run);
+      updateOverlay();
       return;
     }
 
-    const run = activeRun;
-    const candidate = getRunCandidate(run);
+    const run = tracker.getActiveRun();
+    if (!run) {
+      return;
+    }
 
+    const candidate = getRunCandidate(run);
     if (!candidate) {
       updateOverlay();
       return;
     }
 
-    const text = getMessageText(candidate);
-    const words = countWords(text);
-    const visibleText = getVisibleMessageText(candidate);
-    const visibleWords = countWords(visibleText);
-    const candidateStreaming = candidateLooksStreaming(candidate);
+    run.metadata.trackedElement = candidate;
 
-    run.trackedElement = candidate;
-    run.visibleWordCount = visibleWords;
+    const result = tracker.observe({
+      ...buildObservation(candidate),
+      generationActive: generationLooksActive()
+    });
 
-    if (words > run.lastObservedWordCount) {
-      run.lastContentChangeAt = nowMs();
-      run.lastObservedWordCount = words;
-      debugLog("content update", words, text.slice(0, 120));
-    }
-
-    if (visibleWords > run.lastVisibleWordCount) {
-      run.lastContentChangeAt = nowMs();
-      run.lastVisibleWordCount = visibleWords;
-      run.finalWordCount = visibleWords;
-    }
-
-    if (candidate && (!run.modelSlug || run.modelSlug === "unknown")) {
-      run.modelSlug = getModelSlug(candidate);
-    }
-
-    if (!run.firstWordAt && visibleWords > 0) {
-      run.firstWordAt = nowMs();
-      run.lastContentChangeAt = run.firstWordAt;
-      run.finalWordCount = visibleWords;
-      debugLog("first visible word", visibleWords, run.firstWordAt - run.startedAt);
-    }
-
-    if (!run.firstWordAt) {
-      updateOverlay();
-      return;
-    }
-
-    const idleForMs = nowMs() - run.lastContentChangeAt;
-    const isActive = generationLooksActive() || candidateStreaming;
-
-    if (!isActive && idleForMs >= COMPLETION_SETTLE_MS) {
-      run.completedAt = nowMs();
-      void finalizeRun("complete");
+    if (result?.type === "complete") {
+      void handleCompletedRun(result);
       return;
     }
 
@@ -1123,8 +751,9 @@
     }
     lastSubmitAt = currentMs;
 
-    if (activeRun) {
-      resetActiveRun("superseded");
+    const previousRun = tracker.resetRun("superseded");
+    if (previousRun) {
+      debugLog("reset run", previousRun.reason, previousRun.run);
     }
 
     overlaySample = null;
@@ -1134,36 +763,21 @@
     const latestUserTurn = getLatestUserTurn();
     const startedWallClock = Date.now();
 
-    activeRun = {
-      id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    const run = tracker.startRun({
       triggerType,
-      startedAt: currentMs,
-      startedWallClock,
-      context: getRunContext(startedWallClock),
+      promptText: fullPromptText,
       promptPreview,
       inputWordCount: countWords(fullPromptText),
-      baselineAssistants: captureAssistantSnapshot(),
-      baselineUserTurnId: latestUserTurn ? latestUserTurn.getAttribute("data-turn-id") || "" : "",
-      firstWordAt: null,
-      completedAt: null,
-      modelSlug: "unknown",
-      trackedElement: null,
-      lastContentChangeAt: currentMs,
-      lastObservedWordCount: 0,
-      lastVisibleWordCount: 0,
-      visibleWordCount: 0,
-      finalWordCount: 0
-    };
-
-    debugLog("start run", activeRun);
-    const runId = activeRun.id;
-    clearTimeout(hardTimeoutTimer);
-    hardTimeoutTimer = setTimeout(() => {
-      if (activeRun && activeRun.id === runId) {
-        resetActiveRun("timeout");
+      startedWallClock,
+      metadata: {
+        context: getRunContext(startedWallClock),
+        baselineAssistants: captureAssistantSnapshot(),
+        baselineUserTurnId: latestUserTurn ? latestUserTurn.getAttribute("data-turn-id") || "" : "",
+        trackedElement: null
       }
-    }, HARD_TIMEOUT_MS);
+    });
 
+    debugLog("start run", run);
     scheduleProcess(0);
     updateOverlay();
   }
@@ -1174,6 +788,7 @@
     if (!composer || !isVisible(composer)) {
       return;
     }
+
     startRun("submit", composer);
   }
 
@@ -1210,17 +825,12 @@
       return;
     }
 
-    const composer = getVisibleComposer();
-    startRun("click", composer);
+    startRun("click", getVisibleComposer());
   }
 
   function handleComposerInput(event) {
     const target = event.target;
-    if (!(target instanceof Element)) {
-      return;
-    }
-
-    if (!target.matches(SITE_CONFIG.composerSelector)) {
+    if (!(target instanceof Element) || !target.matches(SITE_CONFIG.composerSelector)) {
       return;
     }
 
@@ -1228,7 +838,7 @@
   }
 
   function handleMutation(mutations) {
-    if (!activeRun) {
+    if (!tracker.getActiveRun()) {
       return;
     }
 
@@ -1257,7 +867,8 @@
 
     if (changes[OVERLAY_SETTINGS_KEY]) {
       overlaySettings = normalizeOverlaySettings(changes[OVERLAY_SETTINGS_KEY].newValue);
-      syncOverlayVisibility();
+      overlay.setSettings(overlaySettings);
+      updateOverlay();
     }
 
     if (changes[STORAGE_KEY]) {
@@ -1271,14 +882,15 @@
     const storage = getStorageArea();
     const data = await storage.get([STORAGE_KEY, OVERLAY_SETTINGS_KEY]);
     const samples = Array.isArray(data[STORAGE_KEY]) ? data[STORAGE_KEY] : [];
+
     latestSample = samples[0] || null;
     overlaySettings = normalizeOverlaySettings(data[OVERLAY_SETTINGS_KEY]);
-    syncOverlayVisibility();
+    overlay.setSettings(overlaySettings);
+    updateOverlay();
   }
 
   function initMutationObserver() {
     const observer = new MutationObserver(handleMutation);
-
     observer.observe(document.documentElement, {
       childList: true,
       subtree: true,
@@ -1289,7 +901,7 @@
   function initPolling() {
     clearInterval(pollTimer);
     pollTimer = setInterval(() => {
-      if (activeRun) {
+      if (tracker.getActiveRun()) {
         processActiveRun();
       }
     }, POLL_MS);
@@ -1300,13 +912,14 @@
     document.addEventListener("keydown", handleKeyDown, true);
     document.addEventListener("click", handleClick, true);
     document.addEventListener("input", handleComposerInput, true);
-    window.addEventListener("resize", applyOverlayPosition);
     initMutationObserver();
     initPolling();
+
     const storageEvents = getStorageEvents();
     if (storageEvents.onChanged && typeof storageEvents.onChanged.addListener === "function") {
       storageEvents.onChanged.addListener(handleStorageChange);
     }
+
     void loadInitialState();
     debugLog("initialized");
   }
