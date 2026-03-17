@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Import Samples</title>
+    <link rel="stylesheet" href="import.css">
+  </head>
+  <body>
+    <main class="app">
+      <section class="card hero">
+        <p class="eyebrow">LLM Performance Tracker</p>
+        <h1>Import Timing History</h1>
+        <p class="subtle">Restore exported JSON after reinstall or move history between browser profiles.</p>
+      </section>
+
+      <section class="card">
+        <div class="section-head">
+          <div>
+            <h2>Choose File</h2>
+            <p class="subtle">Use a JSON export from this extension.</p>
+          </div>
+          <label class="primary-button" for="import-input">Select JSON</label>
+        </div>
+
+        <input id="import-input" type="file" accept="application/json,.json" hidden>
+
+        <div class="detail-grid">
+          <div>
+            <span class="detail-label">Selected file</span>
+            <strong id="file-name" class="detail-value">None</strong>
+          </div>
+          <div>
+            <span class="detail-label">Current stored samples</span>
+            <strong id="stored-count" class="detail-value">0</strong>
+          </div>
+        </div>
+
+        <div class="actions">
+          <button id="import-submit" class="primary-button" type="button" disabled>Import Samples</button>
+        </div>
+
+        <p id="status-message" class="status-message" hidden></p>
+      </section>
+    </main>
+
+    <script src="lib/sample-transfer.js"></script>
+    <script src="import.js"></script>
+  </body>
+</html>

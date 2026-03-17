@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>ChatGPT TTFW Tracker</title>
+    <title>LLM Performance Tracker</title>
     <link rel="stylesheet" href="popup.css">
   </head>
   <body>
@@ -11,9 +11,10 @@
       <header class="header">
         <div>
           <p class="eyebrow">ChatGPT + Claude + Perplexity Timing</p>
-          <h1>TTFW Tracker</h1>
+          <h1>LLM Performance Tracker</h1>
         </div>
         <div class="header-actions">
+          <button id="import-button" class="ghost-button" type="button">Import</button>
           <button id="export-button" class="ghost-button" type="button">Export</button>
           <button id="clear-button" class="clear-button" type="button">Clear</button>
         </div>
@@ -134,7 +135,7 @@
         <div class="sample-metrics"></div>
       </article>
     </template>
-
+    <script src="lib/sample-transfer.js"></script>
     <script src="popup.js"></script>
   </body>
 </html>

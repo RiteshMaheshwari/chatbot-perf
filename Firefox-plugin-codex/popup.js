@@ -2,6 +2,7 @@ const STORAGE_KEY = "chatgpt_ttfw_samples";
 const OVERLAY_SETTINGS_KEY = "chatgpt_ttfw_overlay_settings";
 const storage = typeof browser !== "undefined" ? browser.storage.local : chrome.storage.local;
 const storageEvents = typeof browser !== "undefined" ? browser.storage : chrome.storage;
+const transfer = globalThis.LlmSampleTransfer;
 let selectedRange = 10;
 
 function average(items, key) {
@@ -23,46 +24,6 @@ function percentile(items, key, p) {
     .sort((a, b) => a - b);
   const index = Math.min(values.length - 1, Math.max(0, Math.ceil((p / 100) * values.length) - 1));
   return values[index];
-}
-
-function downloadSamples(samples) {
-  const date = new Date().toISOString().slice(0, 10);
-  const filename = `chatgpt-ttfw-samples-${date}.json`;
-  const exportedSamples = samples.map((sample) => ({
-    id: sample.id,
-    sessionId: sample.sessionId,
-    site: sample.site,
-    model: sample.model,
-    hostname: sample.hostname,
-    startedAt: sample.startedAt,
-    locale: sample.locale,
-    timezone: sample.timezone,
-    utcOffsetMinutes: sample.utcOffsetMinutes,
-    visibilityStateAtStart: sample.visibilityStateAtStart,
-    wasPageVisibleAtStart: sample.wasPageVisibleAtStart,
-    onlineAtStart: sample.onlineAtStart,
-    connectionEffectiveType: sample.connectionEffectiveType,
-    connectionRttMs: sample.connectionRttMs,
-    connectionDownlinkMbps: sample.connectionDownlinkMbps,
-    connectionSaveData: sample.connectionSaveData,
-    inputWords: sample.inputWords,
-    ttfwMs: sample.ttfwMs,
-    ttlwMs: sample.ttlwMs,
-    streamingMs: sample.streamingMs,
-    wordCount: sample.wordCount,
-    wordsPerSecond: sample.wordsPerSecond,
-    endToEndWordsPerSecond: sample.endToEndWordsPerSecond,
-    reason: sample.reason
-  }));
-  const blob = new Blob([JSON.stringify(exportedSamples, null, 2)], {
-    type: "application/json"
-  });
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.download = filename;
-  anchor.click();
-  URL.revokeObjectURL(url);
 }
 
 function formatMs(value) {
@@ -335,7 +296,12 @@ async function loadSamples() {
 document.getElementById("export-button").addEventListener("click", async () => {
   const data = await storage.get(STORAGE_KEY);
   const samples = Array.isArray(data[STORAGE_KEY]) ? data[STORAGE_KEY] : [];
-  downloadSamples(samples);
+  transfer.downloadSamples(samples);
+});
+
+document.getElementById("import-button").addEventListener("click", () => {
+  const runtime = typeof browser !== "undefined" ? browser.runtime : chrome.runtime;
+  window.open(runtime.getURL("import.html"), "_blank", "noopener,noreferrer");
 });
 
 document.getElementById("clear-button").addEventListener("click", async () => {

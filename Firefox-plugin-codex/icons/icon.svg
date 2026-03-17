@@ -1,44 +1,26 @@
 <svg width="128" height="128" viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <linearGradient id="bg" x1="16" y1="10" x2="112" y2="118" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#F4F8FF"/>
-      <stop offset="1" stop-color="#D8E8FF"/>
+    <linearGradient id="bg" x1="14" y1="10" x2="114" y2="118" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0E4AA3"/>
+      <stop offset="1" stop-color="#2A9BFF"/>
     </linearGradient>
-    <linearGradient id="dial" x1="34" y1="30" x2="94" y2="98" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#0F4AA3"/>
-      <stop offset="1" stop-color="#2B8CFF"/>
+    <linearGradient id="glow" x1="30" y1="22" x2="72" y2="58" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#A8D7FF" stop-opacity="0.8"/>
+      <stop offset="1" stop-color="#A8D7FF" stop-opacity="0"/>
     </linearGradient>
-    <linearGradient id="bubble" x1="40" y1="38" x2="86" y2="84" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#FFFFFF"/>
-      <stop offset="1" stop-color="#ECF5FF"/>
-    </linearGradient>
-    <filter id="shadow" x="9" y="9" width="110" height="110" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
-      <feDropShadow dx="0" dy="8" stdDeviation="8" flood-color="#5389D1" flood-opacity="0.25"/>
-    </filter>
   </defs>
 
-  <rect x="12" y="12" width="104" height="104" rx="28" fill="url(#bg)"/>
+  <rect x="8" y="8" width="112" height="112" rx="28" fill="url(#bg)"/>
+  <circle cx="40" cy="34" r="24" fill="url(#glow)"/>
 
-  <g filter="url(#shadow)">
-    <circle cx="64" cy="64" r="34" fill="url(#dial)"/>
-  </g>
+  <path d="M26 38C26 29.1634 33.1634 22 42 22H86C94.8366 22 102 29.1634 102 38V76C102 84.8366 94.8366 92 86 92H58L44 104V92H42C33.1634 92 26 84.8366 26 76V38Z" fill="white"/>
 
-  <rect x="56" y="22" width="16" height="12" rx="6" fill="#0F4AA3"/>
-  <rect x="42" y="28" width="12" height="8" rx="4" transform="rotate(-28 42 28)" fill="#7CB4FF"/>
-  <rect x="74" y="28" width="12" height="8" rx="4" transform="rotate(28 74 28)" fill="#7CB4FF"/>
+  <rect x="41" y="61" width="12" height="19" rx="4.5" fill="#9ED5FF"/>
+  <rect x="58" y="50" width="12" height="30" rx="4.5" fill="#5AB3FF"/>
+  <rect x="75" y="39" width="12" height="41" rx="4.5" fill="#0E4AA3"/>
 
-  <path d="M44 52C44 46.4772 48.4772 42 54 42H74C79.5228 42 84 46.4772 84 52V68C84 73.5228 79.5228 78 74 78H66L58 86V78H54C48.4772 78 44 73.5228 44 68V52Z" fill="url(#bubble)"/>
+  <path d="M41 50L57 43L68 47L82 34" stroke="#0E4AA3" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="82" cy="34" r="5.5" fill="#0E4AA3"/>
 
-  <rect x="52" y="53" width="23" height="6" rx="3" fill="#2B8CFF"/>
-  <rect x="52" y="63" width="16" height="6" rx="3" fill="#66AEFF"/>
-  <circle cx="64" cy="64" r="33" stroke="#0B326F" stroke-opacity="0.14" stroke-width="2"/>
-
-  <path d="M64 64L64 46" stroke="#0B326F" stroke-width="5" stroke-linecap="round"/>
-  <path d="M64 64L77 56" stroke="#0B326F" stroke-width="5" stroke-linecap="round"/>
-  <circle cx="64" cy="64" r="5" fill="#0B326F"/>
-
-  <circle cx="64" cy="36" r="2.5" fill="#D8EAFF"/>
-  <circle cx="64" cy="92" r="2.5" fill="#D8EAFF"/>
-  <circle cx="36" cy="64" r="2.5" fill="#D8EAFF"/>
-  <circle cx="92" cy="64" r="2.5" fill="#D8EAFF"/>
+  <path d="M92 23L94.7 28.5L100.8 29.4L96.4 33.7L97.4 39.8L92 36.9L86.6 39.8L87.6 33.7L83.2 29.4L89.3 28.5L92 23Z" fill="#FFD556"/>
 </svg>
