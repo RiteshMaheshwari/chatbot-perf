@@ -1,63 +1,98 @@
-# ChatGPT TTFW Tracker
+# LLM Performance Tracker
 
-Firefox extension that measures ChatGPT UI latency:
+Firefox extension for measuring LLM UI performance on:
 
-- Time to first word (TTFW): from user send/submit to the first visible response word.
-- Time to last word (TTLW): from user send/submit to the completed response in the UI.
-- Words per second (WPS): response word count divided by streaming time.
-- Optional floating overlay: always-visible in-page panel with live timing state and the latest completed run.
+- ChatGPT
+- Claude
+- Perplexity
 
-## How it works
+It captures:
 
-The content script runs on `chatgpt.com` and `chat.openai.com`.
+- Time to first word (TTFW)
+- Time to last word (TTLW)
+- Streaming speed in words per second (WPS)
+- Prompt input size
+- Basic page/runtime context such as site, model, timezone, and visibility state
 
-- It detects a prompt send from form submit, Enter on the composer, or clicking a visible send button.
-- It snapshots the current assistant message count at submit time.
-- It watches for the next assistant message and only starts timing once actual response words appear.
-- It ignores intermediate UI churn such as "thinking" states because no words are counted until rendered text exists.
-- It marks completion when the response stops changing and ChatGPT is no longer showing an active stop button.
+## Features
 
-## Load in Firefox
+- Floating in-page overlay with live timing state and the latest completed run
+- Popup dashboard with summary metrics, charts, model grouping, and recent runs
+- JSON export and import for restoring history after reinstall
+- Privacy-safe telemetry queue with optional background upload to a backend
+- Multi-site DOM adapters on top of a reusable timing core library
+
+## Architecture
+
+The extension is split into layers:
+
+- Measurement core: [llm-timing-core.js](/Users/rndm/Code/chatbot-perf/Firefox-plugin-codex/lib/llm-timing-core.js)
+- Overlay UI: [content-overlay.js](/Users/rndm/Code/chatbot-perf/Firefox-plugin-codex/content-overlay.js)
+- Site adapter and local persistence: [content.js](/Users/rndm/Code/chatbot-perf/Firefox-plugin-codex/content.js)
+- Popup UI: [popup.html](/Users/rndm/Code/chatbot-perf/Firefox-plugin-codex/popup.html), [popup.js](/Users/rndm/Code/chatbot-perf/Firefox-plugin-codex/popup.js), [popup.css](/Users/rndm/Code/chatbot-perf/Firefox-plugin-codex/popup.css)
+- Import flow: [import.html](/Users/rndm/Code/chatbot-perf/Firefox-plugin-codex/import.html), [import.js](/Users/rndm/Code/chatbot-perf/Firefox-plugin-codex/import.js), [import.css](/Users/rndm/Code/chatbot-perf/Firefox-plugin-codex/import.css)
+- Background telemetry queue/uploader: [background.js](/Users/rndm/Code/chatbot-perf/Firefox-plugin-codex/background.js), [telemetry.js](/Users/rndm/Code/chatbot-perf/Firefox-plugin-codex/lib/telemetry.js)
+
+## Load In Firefox
 
 1. Open `about:debugging`.
 2. Choose `This Firefox`.
 3. Click `Load Temporary Add-on...`.
-4. Select [`manifest.json`](/Users/rndm/Code/Firefox/codex-ttfw/manifest.json).
+4. Select [manifest.json](/Users/rndm/Code/chatbot-perf/Firefox-plugin-codex/manifest.json).
 
-## Notes
+If you already had the add-on loaded, reload it after manifest or background-script changes.
 
-- The DOM heuristics are written to be resilient, but ChatGPT changes its markup frequently.
-- Enable the overlay from the popup to keep a draggable live panel visible while you use ChatGPT.
-- If you can provide a live HTML snapshot or screenshot from your account, the selectors can be tightened further.
+## Storage Keys
 
-## Current State
+- Samples: `chatgpt_ttfw_samples`
+- Overlay settings: `chatgpt_ttfw_overlay_settings`
+- Telemetry settings: `llm_perf_telemetry_settings`
+- Telemetry queue: `llm_perf_telemetry_queue`
+- Telemetry state: `llm_perf_telemetry_state`
 
-- Main implementation lives in [`content.js`](/Users/rndm/Code/Firefox/codex-ttfw/content.js).
-- Popup UI and charts live in [`popup.html`](/Users/rndm/Code/Firefox/codex-ttfw/popup.html), [`popup.js`](/Users/rndm/Code/Firefox/codex-ttfw/popup.js), and [`popup.css`](/Users/rndm/Code/Firefox/codex-ttfw/popup.css).
-- Samples are stored in extension local storage under `chatgpt_ttfw_samples`.
-- Overlay settings are stored under `chatgpt_ttfw_overlay_settings`.
-- Local retention cap is `10000` samples.
+## Import And Export
 
-## DOM Assumptions
+- Export is available from the popup.
+- Import opens a dedicated extension page so Firefox popup teardown does not interrupt file selection.
+- Exported files exclude confidential fields such as prompt preview, page URL, and page title.
 
-- Composer: `textarea[name="prompt-textarea"]`
-- Send button: `#composer-submit-button`, `button[data-testid="send-button"]`
-- User turns: `article[data-turn="user"][data-testid^="conversation-turn-"]`
-- Assistant turns: `article[data-turn="assistant"][data-testid^="conversation-turn-"]`
-- Assistant message root: `[data-message-author-role="assistant"]`
-- Answer content roots: `.markdown`, `.prose`, `[data-testid="conversation-turn-content"]`
-- Streaming markers: `.streaming-animation`, `[data-writing-block]`, `.BZ_Pyq_root`
+## Telemetry Upload
 
-## Timing Heuristics
+Telemetry upload is opt-in.
 
-- TTFW uses only visible text, not raw DOM text.
-- Visible text requires non-hidden layout, a rendered text rect, and effective opacity of at least `0.75`.
-- For structured ChatGPT assistant turns, the tracker now requires a real answer-content root before counting words.
-- TTLW currently finalizes when the tracked assistant turn is no longer streaming and content has been stable for `120ms`.
-- Poll interval is `100ms`.
+- The popup lets you enable upload and set a Worker endpoint URL.
+- Completed runs are still stored locally first.
+- A background script batches sanitized samples and uploads them separately.
+- If telemetry is disabled, queued uploads are cleared.
 
-## Web Search Caveat
+Sanitized telemetry excludes:
 
-- A known failure mode was counting search-status UI like "Searching the web" as the first word.
-- The current fix is to avoid falling back to whole-turn text for structured assistant turns and only count words from `.markdown` / `.prose` style answer roots.
-- If web-search TTFW is still early, the next debugging input needed is the live HTML for the assistant turn while ChatGPT is in the search phase. The key question is whether the search-status text is rendered inside the same markdown/prose root as the final answer.
+- `promptPreview`
+- `url`
+- `title`
+
+## Backend Scaffold
+
+A free-tier Cloudflare backend scaffold lives in:
+
+- [backend/cloudflare-telemetry-worker](/Users/rndm/Code/chatbot-perf/backend/cloudflare-telemetry-worker)
+
+That project includes:
+
+- Worker ingest endpoint
+- D1 schema
+- Basic validation, dedupe, and rate limiting
+- Setup instructions in its own [README.md](/Users/rndm/Code/chatbot-perf/backend/cloudflare-telemetry-worker/README.md)
+
+## Timing Notes
+
+- TTFW uses visible rendered text, not raw DOM text.
+- Placeholder/search-status phrases such as `Searching the web` and `Working` are ignored.
+- For structured responses, timing waits for actual answer content rather than generic assistant wrappers.
+- TTLW finalizes after streaming stops and content has settled for a site-specific delay.
+
+## Caveats
+
+- DOM heuristics can break when ChatGPT, Claude, or Perplexity change markup.
+- The overlay and popup should continue working even if telemetry upload fails.
+- The Cloudflare backend scaffold is implemented, but live deployment and end-to-end upload verification still need to be done in your account.

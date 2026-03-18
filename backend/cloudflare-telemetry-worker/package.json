@@ -1,0 +1,13 @@
+{
+  "name": "llm-performance-tracker-worker",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "dev": "wrangler dev",
+    "db:remote": "wrangler d1 execute llm-performance-tracker --remote --file=./schema.sql"
+  },
+  "devDependencies": {
+    "wrangler": "^4.8.0"
+  }
+}

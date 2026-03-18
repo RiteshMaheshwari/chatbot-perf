@@ -4,15 +4,30 @@
   "version": "0.1.0",
   "description": "Measures ChatGPT, Claude, and Perplexity time to first word, time to last word, and streaming speed in the UI.",
   "permissions": [
-    "storage"
+    "storage",
+    "alarms"
   ],
   "host_permissions": [
     "https://chatgpt.com/*",
     "https://chat.openai.com/*",
     "https://claude.ai/*",
     "https://perplexity.ai/*",
-    "https://www.perplexity.ai/*"
+    "https://www.perplexity.ai/*",
+    "https://*.workers.dev/*",
+    "http://localhost/*",
+    "http://127.0.0.1/*"
   ],
+  "background": {
+    "scripts": [
+      "lib/telemetry.js",
+      "background.js"
+    ],
+    "preferred_environment": [
+      "document",
+      "service_worker"
+    ],
+    "service_worker": "background.js"
+  },
   "content_scripts": [
     {
       "matches": [
@@ -24,6 +39,7 @@
       ],
       "js": [
         "lib/llm-timing-core.js",
+        "lib/telemetry.js",
         "content-overlay.js",
         "content.js"
       ],

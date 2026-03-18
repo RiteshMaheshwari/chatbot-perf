@@ -31,6 +31,28 @@
         </label>
       </section>
 
+      <section class="telemetry-panel">
+        <div class="telemetry-head">
+          <div>
+            <p class="overlay-title">Telemetry Upload</p>
+            <p class="overlay-status">Opt-in only. Sends sanitized metrics, never prompt text.</p>
+          </div>
+          <label class="toggle">
+            <input id="telemetry-toggle" type="checkbox">
+            <span class="toggle-track" aria-hidden="true"></span>
+          </label>
+        </div>
+        <label class="field">
+          <span class="field-label">Worker Endpoint</span>
+          <input id="telemetry-endpoint" class="field-input" type="url" placeholder="https://your-worker.workers.dev/ingest">
+        </label>
+        <div class="telemetry-actions">
+          <button id="telemetry-save" class="ghost-button" type="button">Save</button>
+          <button id="telemetry-flush" class="ghost-button" type="button">Upload Now</button>
+        </div>
+        <p id="telemetry-status" class="telemetry-status">Telemetry is off.</p>
+      </section>
+
       <section class="summary" id="summary">
         <article class="metric">
           <span class="metric-label">Samples</span>
@@ -136,6 +158,7 @@
       </article>
     </template>
     <script src="lib/sample-transfer.js"></script>
+    <script src="lib/telemetry.js"></script>
     <script src="popup.js"></script>
   </body>
 </html>

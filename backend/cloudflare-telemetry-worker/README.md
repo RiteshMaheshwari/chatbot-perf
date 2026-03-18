@@ -1,0 +1,101 @@
+# Cloudflare Telemetry Backend
+
+This Worker receives sanitized timing batches from the Firefox extension and stores them in Cloudflare D1.
+
+## What this backend does
+
+- exposes `POST /ingest` for extension uploads
+- validates event payloads server-side
+- rate-limits requests per IP hash in hourly windows
+- deduplicates by `event_id`
+- stores accepted events in D1
+- stores invalid payloads in `rejected_events`
+
+## Cloudflare setup
+
+1. Install dependencies:
+
+```bash
+cd /Users/rndm/Code/chatbot-perf/backend/cloudflare-telemetry-worker
+npm install
+```
+
+2. Authenticate Wrangler:
+
+```bash
+npx wrangler login
+```
+
+3. Create the D1 database:
+
+```bash
+npx wrangler d1 create llm-performance-tracker
+```
+
+Copy the returned `database_id` into [wrangler.toml](/Users/rndm/Code/chatbot-perf/backend/cloudflare-telemetry-worker/wrangler.toml) in the `database_id` field.
+
+4. Apply the schema to the remote database:
+
+```bash
+npx wrangler d1 execute llm-performance-tracker --remote --file=./schema.sql
+```
+
+5. Deploy the Worker:
+
+```bash
+npx wrangler deploy
+```
+
+Wrangler will print a URL like:
+
+```text
+https://llm-performance-tracker.<subdomain>.workers.dev
+```
+
+The extension endpoint should be:
+
+```text
+https://llm-performance-tracker.<subdomain>.workers.dev/ingest
+```
+
+## Local development
+
+Run the Worker locally:
+
+```bash
+npx wrangler dev
+```
+
+For local testing in the extension popup, use:
+
+```text
+http://127.0.0.1:8787/ingest
+```
+
+## Health check
+
+The Worker exposes:
+
+```text
+GET /health
+```
+
+Expected response:
+
+```json
+{"ok":true,"service":"llm-performance-tracker"}
+```
+
+## Extension setup
+
+1. Reload the temporary add-on in Firefox.
+2. Open the popup.
+3. Turn on `Telemetry Upload`.
+4. Paste the Worker endpoint URL.
+5. Click `Save`.
+6. Click `Upload Now` to flush the current queue.
+
+## Notes
+
+- The extension sends sanitized metrics only. It does not upload `promptPreview`, page `url`, or page `title`.
+- The rate limiter is intentionally simple for the free tier. If abuse becomes real, move rate limiting into a Durable Object.

@@ -3,6 +3,8 @@ const OVERLAY_SETTINGS_KEY = "chatgpt_ttfw_overlay_settings";
 const storage = typeof browser !== "undefined" ? browser.storage.local : chrome.storage.local;
 const storageEvents = typeof browser !== "undefined" ? browser.storage : chrome.storage;
 const transfer = globalThis.LlmSampleTransfer;
+const telemetry = globalThis.LlmTelemetry;
+const runtime = typeof browser !== "undefined" ? browser.runtime : chrome.runtime;
 let selectedRange = 10;
 
 function average(items, key) {
@@ -182,6 +184,34 @@ function normalizeOverlaySettings(raw) {
   };
 }
 
+function renderTelemetrySettings(settings, state) {
+  const normalizedSettings = telemetry.normalizeTelemetrySettings(settings);
+  const normalizedState = telemetry.normalizeTelemetryState(state);
+
+  document.getElementById("telemetry-toggle").checked = normalizedSettings.enabled;
+  document.getElementById("telemetry-endpoint").value = normalizedSettings.endpointUrl;
+
+  let status = normalizedSettings.enabled
+    ? "Telemetry enabled."
+    : "Telemetry is off.";
+
+  if (normalizedSettings.enabled && !normalizedSettings.endpointUrl) {
+    status = "Telemetry is on, but the Worker endpoint is missing.";
+  } else if (normalizedState.lastError) {
+    status = normalizedState.lastError;
+  } else if (normalizedState.lastSuccessAt) {
+    status = `Last upload ${new Date(normalizedState.lastSuccessAt).toLocaleTimeString([], {
+      hour: "numeric",
+      minute: "2-digit",
+      second: "2-digit"
+    })}. Queue ${normalizedState.queueSize}.`;
+  } else if (normalizedState.queueSize > 0) {
+    status = `Queue has ${normalizedState.queueSize} sample${normalizedState.queueSize === 1 ? "" : "s"} waiting.`;
+  }
+
+  document.getElementById("telemetry-status").textContent = status;
+}
+
 function renderOverlaySettings(settings) {
   const normalized = normalizeOverlaySettings(settings);
   document.getElementById("overlay-toggle").checked = normalized.enabled;
@@ -282,7 +312,12 @@ function renderSamples(samples) {
 }
 
 async function loadSamples() {
-  const data = await storage.get([STORAGE_KEY, OVERLAY_SETTINGS_KEY]);
+  const data = await storage.get([
+    STORAGE_KEY,
+    OVERLAY_SETTINGS_KEY,
+    telemetry.TELEMETRY_SETTINGS_KEY,
+    telemetry.TELEMETRY_STATE_KEY
+  ]);
   const allSamples = Array.isArray(data[STORAGE_KEY]) ? data[STORAGE_KEY] : [];
   const samples = filterSamples(allSamples);
   renderRangeState(allSamples.length, samples.length);
@@ -291,6 +326,7 @@ async function loadSamples() {
   renderCharts(samples);
   renderSamples(samples);
   renderOverlaySettings(data[OVERLAY_SETTINGS_KEY]);
+  renderTelemetrySettings(data[telemetry.TELEMETRY_SETTINGS_KEY], data[telemetry.TELEMETRY_STATE_KEY]);
 }
 
 document.getElementById("export-button").addEventListener("click", async () => {
@@ -302,6 +338,27 @@ document.getElementById("export-button").addEventListener("click", async () => {
 document.getElementById("import-button").addEventListener("click", () => {
   const runtime = typeof browser !== "undefined" ? browser.runtime : chrome.runtime;
   window.open(runtime.getURL("import.html"), "_blank", "noopener,noreferrer");
+});
+
+document.getElementById("telemetry-save").addEventListener("click", async () => {
+  const nextSettings = telemetry.normalizeTelemetrySettings({
+    enabled: document.getElementById("telemetry-toggle").checked,
+    endpointUrl: document.getElementById("telemetry-endpoint").value
+  });
+
+  await storage.set({
+    [telemetry.TELEMETRY_SETTINGS_KEY]: nextSettings
+  });
+  await loadSamples();
+});
+
+document.getElementById("telemetry-flush").addEventListener("click", async () => {
+  try {
+    await runtime.sendMessage({ type: "telemetry/flush-now" });
+  } catch (_error) {
+    // Ignore runtime wakeup issues; loadSamples will show current state.
+  }
+  await loadSamples();
 });
 
 document.getElementById("clear-button").addEventListener("click", async () => {
@@ -334,7 +391,15 @@ document.querySelectorAll(".range-button").forEach((button) => {
 
 if (storageEvents.onChanged && typeof storageEvents.onChanged.addListener === "function") {
   storageEvents.onChanged.addListener((changes, areaName) => {
-    if (areaName === "local" && (changes[STORAGE_KEY] || changes[OVERLAY_SETTINGS_KEY])) {
+    if (
+      areaName === "local" &&
+      (
+        changes[STORAGE_KEY] ||
+        changes[OVERLAY_SETTINGS_KEY] ||
+        changes[telemetry.TELEMETRY_SETTINGS_KEY] ||
+        changes[telemetry.TELEMETRY_STATE_KEY]
+      )
+    ) {
       void loadSamples();
     }
   });
