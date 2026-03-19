@@ -178,6 +178,30 @@
     return Number(value).toFixed(2);
   }
 
+  function formatRate(value) {
+    if (!value && value !== 0) {
+      return "-";
+    }
+
+    return Number(value).toFixed(1);
+  }
+
+  function liveLongestStallMs(run, now = nowMs()) {
+    if (!run?.firstWordAt) {
+      return null;
+    }
+
+    const events = Array.isArray(run.visibleProgressEvents) ? run.visibleProgressEvents : [];
+    let longest = 0;
+
+    for (let index = 1; index < events.length; index += 1) {
+      longest = Math.max(longest, events[index].at - events[index - 1].at);
+    }
+
+    const lastProgressAt = events.length ? events[events.length - 1].at : run.firstWordAt;
+    return Math.max(longest, now - lastProgressAt);
+  }
+
   function normalizeOverlaySettings(raw) {
     return {
       enabled: raw?.enabled === undefined ? DEFAULT_OVERLAY_SETTINGS.enabled : Boolean(raw?.enabled),
@@ -640,15 +664,24 @@
     const activeRun = tracker.getActiveRun();
     let status = "idle";
     let statusText = latestSample ? "Idle" : "Armed";
+    let statusIcon = latestSample ? "✓" : "•";
     let promptText = "Waiting for the next prompt on this page.";
     let elapsedText = "-";
     let firstWordText = "-";
+    let lastWordText = "-";
+    let stallText = "-";
+    let wpsText = "-";
     let wordCountText = "-";
 
     if (activeRun) {
       const elapsed = nowMs() - activeRun.startedAt;
       const firstWordDelay = activeRun.firstWordAt ? activeRun.firstWordAt - activeRun.startedAt : null;
       const candidateStreaming = candidateLooksStreaming(activeRun.metadata?.trackedElement);
+      const visibleWordCount = Number(activeRun.visibleWordCount) || 0;
+      const liveStreamingMs = activeRun.firstWordAt ? Math.max(1, nowMs() - activeRun.firstWordAt) : 0;
+      const liveWps = activeRun.firstWordAt && visibleWordCount > 0
+        ? (visibleWordCount / (liveStreamingMs / 1000))
+        : null;
 
       status = activeRun.firstWordAt
         ? (generationLooksActive() || candidateStreaming ? "streaming" : "finishing")
@@ -656,30 +689,51 @@
       statusText =
         status === "streaming" ? "Streaming" :
         status === "finishing" ? "Finishing" :
-        "Waiting for first word";
-      promptText = truncateText(activeRun.promptPreview || "Prompt submitted.", 120);
+        "Waiting...";
+      statusIcon =
+        status === "streaming" ? "⚡" :
+        status === "finishing" ? "…" :
+        "⏳";
+      promptText = truncateText(activeRun.promptPreview || "Prompt submitted.", 96);
       elapsedText = formatMs(elapsed);
-      firstWordText = firstWordDelay ? formatMs(firstWordDelay) : "...";
-      wordCountText = String(activeRun.visibleWordCount || 0);
+      firstWordText = firstWordDelay ? formatMs(firstWordDelay) : "waiting...";
+      lastWordText =
+        status === "streaming" ? "streaming..." :
+        status === "finishing" ? "finishing..." :
+        "waiting...";
+      stallText = activeRun.firstWordAt ? formatMs(liveLongestStallMs(activeRun, nowMs())) : "waiting...";
+      wpsText = liveWps !== null ? `~${formatRate(liveWps)}` : "—";
+      wordCountText = visibleWordCount > 0 ? String(visibleWordCount) : "—";
     } else if (overlaySample) {
       status = "complete";
       statusText = "Complete";
-      promptText = truncateText(overlaySample.promptPreview || "Last completed prompt.", 120);
+      statusIcon = "✓";
+      promptText = truncateText(overlaySample.promptPreview || "Last completed prompt.", 96);
       elapsedText = formatMs(overlaySample.ttlwMs);
       firstWordText = formatMs(overlaySample.ttfwMs);
+      lastWordText = formatMs(overlaySample.ttlwMs);
+      stallText = formatMs(overlaySample.longestStallMs);
+      wpsText = formatRate(overlaySample.wordsPerSecond);
       wordCountText = String(overlaySample.wordCount || 0);
     }
 
     const latestSummary = latestSample
-      ? `Last run: ${latestSample.site || SITE} | ${latestSample.model || "unknown"} | TTFW ${formatMs(latestSample.ttfwMs)} | TTLW ${formatMs(latestSample.ttlwMs)} | ${latestSample.wordCount} words | ${formatNumber(latestSample.wordsPerSecond)} wps`
+      ? truncateText(
+          `Last run: ${latestSample.site || SITE} | ${latestSample.model || "unknown"} | TTFW ${formatMs(latestSample.ttfwMs)} | TTLW ${formatMs(latestSample.ttlwMs)} | ${latestSample.wordCount} words | ${formatNumber(latestSample.wordsPerSecond)} wps`,
+          108
+        )
       : "No completed runs captured yet.";
 
     overlay.render({
       status,
       statusText,
+      statusIcon,
       promptText,
       elapsedText,
       firstWordText,
+      lastWordText,
+      stallText,
+      wpsText,
       wordCountText,
       latestSummary
     });
