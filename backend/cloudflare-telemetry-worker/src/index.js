@@ -162,6 +162,10 @@ function validateEvent(event) {
   const wordCount = parseFiniteNumber(event.wordCount);
   const wordsPerSecond = parseFiniteNumber(event.wordsPerSecond);
   const streamingMs = parseOptionalFiniteNumber(event.streamingMs);
+  const longestStallMs = parseOptionalFiniteNumber(event.longestStallMs);
+  const stallCount500Ms = parseOptionalFiniteNumber(event.stallCount500Ms);
+  const stallCount1000Ms = parseOptionalFiniteNumber(event.stallCount1000Ms);
+  const p95InterChunkGapMs = parseOptionalFiniteNumber(event.p95InterChunkGapMs);
   const inputWords = parseOptionalFiniteNumber(event.inputWords);
   const endToEndWordsPerSecond = parseOptionalFiniteNumber(event.endToEndWordsPerSecond);
 
@@ -173,6 +177,18 @@ function validateEvent(event) {
   }
   if (streamingMs !== null && streamingMs < 0) {
     return { ok: false, error: "streamingMs cannot be negative." };
+  }
+  if (longestStallMs !== null && longestStallMs < 0) {
+    return { ok: false, error: "longestStallMs cannot be negative." };
+  }
+  if (stallCount500Ms !== null && stallCount500Ms < 0) {
+    return { ok: false, error: "stallCount500Ms cannot be negative." };
+  }
+  if (stallCount1000Ms !== null && stallCount1000Ms < 0) {
+    return { ok: false, error: "stallCount1000Ms cannot be negative." };
+  }
+  if (p95InterChunkGapMs !== null && p95InterChunkGapMs < 0) {
+    return { ok: false, error: "p95InterChunkGapMs cannot be negative." };
   }
   if (wordCount < 0 || wordCount > MAX_WORD_COUNT) {
     return { ok: false, error: "wordCount is out of range." };
@@ -211,6 +227,10 @@ function validateEvent(event) {
       ttfwMs,
       ttlwMs,
       streamingMs,
+      longestStallMs,
+      stallCount500Ms,
+      stallCount1000Ms,
+      p95InterChunkGapMs,
       wordCount,
       wordsPerSecond,
       endToEndWordsPerSecond,
@@ -268,6 +288,10 @@ async function insertEvent(db, event) {
       ttfw_ms,
       ttlw_ms,
       streaming_ms,
+      longest_stall_ms,
+      stall_count_500_ms,
+      stall_count_1000_ms,
+      p95_inter_chunk_gap_ms,
       word_count,
       words_per_second,
       end_to_end_words_per_second,
@@ -277,7 +301,7 @@ async function insertEvent(db, event) {
       user_agent_hash,
       schema_version
     )
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).bind(
     event.eventId,
     event.receivedAt,
@@ -301,6 +325,10 @@ async function insertEvent(db, event) {
     event.ttfwMs,
     event.ttlwMs,
     event.streamingMs,
+    event.longestStallMs,
+    event.stallCount500Ms,
+    event.stallCount1000Ms,
+    event.p95InterChunkGapMs,
     event.wordCount,
     event.wordsPerSecond,
     event.endToEndWordsPerSecond,

@@ -67,7 +67,9 @@ function renderSummary(samples) {
   document.getElementById("samples-count").textContent = String(samples.length);
   const ids = [
     "avg-ttfw",
+    "avg-stall",
     "avg-ttlw",
+    "p95-stall",
     "avg-wps",
     "p50-wps",
     "p95-wps",
@@ -83,7 +85,9 @@ function renderSummary(samples) {
   }
 
   document.getElementById("avg-ttfw").textContent = formatMs(average(samples, "ttfwMs"));
+  document.getElementById("avg-stall").textContent = formatMs(average(samples, "longestStallMs"));
   document.getElementById("avg-ttlw").textContent = formatMs(average(samples, "ttlwMs"));
+  document.getElementById("p95-stall").textContent = formatMs(percentile(samples, "longestStallMs", 95));
   document.getElementById("avg-wps").textContent = formatNumber(average(samples, "wordsPerSecond"));
   document.getElementById("p50-wps").textContent = formatNumber(percentile(samples, "wordsPerSecond", 50));
   document.getElementById("p95-wps").textContent = formatNumber(percentile(samples, "wordsPerSecond", 95));
@@ -268,6 +272,7 @@ function renderModels(samples) {
       </div>
       <div class="model-stats">
         <span class="chip">Avg TTFW ${formatMs(average(entries, "ttfwMs"))}</span>
+        <span class="chip">Avg Stall ${formatMs(average(entries, "longestStallMs"))}</span>
         <span class="chip">Avg WPS ${formatNumber(average(entries, "wordsPerSecond"))}</span>
         <span class="chip">P50 WPS ${formatNumber(percentile(entries, "wordsPerSecond", 50))}</span>
       </div>
@@ -293,6 +298,7 @@ function renderSamples(samples) {
       sample.site ? String(sample.site).toUpperCase() : null,
       sample.model && sample.model !== "unknown" ? sample.model : null,
       `TTFW ${formatMs(sample.ttfwMs)}`,
+      `Stall ${formatMs(sample.longestStallMs)}`,
       `TTLW ${formatMs(sample.ttlwMs)}`,
       `${sample.wordCount} words`,
       `${formatNumber(sample.wordsPerSecond)} wps`,

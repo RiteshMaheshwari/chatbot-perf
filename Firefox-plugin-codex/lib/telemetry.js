@@ -92,6 +92,10 @@
       wordsPerSecond: Number(sample.wordsPerSecond) || 0,
       endToEndWordsPerSecond:
         Number.isFinite(sample.endToEndWordsPerSecond) ? sample.endToEndWordsPerSecond : null,
+      longestStallMs: Number.isFinite(sample.longestStallMs) ? sample.longestStallMs : null,
+      stallCount500Ms: Number.isFinite(sample.stallCount500Ms) ? sample.stallCount500Ms : null,
+      stallCount1000Ms: Number.isFinite(sample.stallCount1000Ms) ? sample.stallCount1000Ms : null,
+      p95InterChunkGapMs: Number.isFinite(sample.p95InterChunkGapMs) ? sample.p95InterChunkGapMs : null,
       reason: typeof sample.reason === "string" ? sample.reason : "complete",
       queuedAt: new Date().toISOString()
     };

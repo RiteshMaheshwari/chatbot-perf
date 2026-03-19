@@ -628,6 +628,10 @@
       wordCount: metrics.wordCount,
       wordsPerSecond: metrics.wordsPerSecond,
       endToEndWordsPerSecond: metrics.endToEndWordsPerSecond,
+      longestStallMs: metrics.longestStallMs,
+      stallCount500Ms: metrics.stallCount500Ms,
+      stallCount1000Ms: metrics.stallCount1000Ms,
+      p95InterChunkGapMs: metrics.p95InterChunkGapMs,
       reason
     };
   }

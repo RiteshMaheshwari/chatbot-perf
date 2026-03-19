@@ -40,6 +40,40 @@
     return wordMatches(text).length;
   }
 
+  function percentileFromSorted(values, p) {
+    if (!values.length) {
+      return 0;
+    }
+
+    const index = Math.min(values.length - 1, Math.max(0, Math.ceil((p / 100) * values.length) - 1));
+    return values[index];
+  }
+
+  function buildProgressMetrics(run) {
+    const events = Array.isArray(run.visibleProgressEvents) ? run.visibleProgressEvents : [];
+    if (events.length < 2) {
+      return {
+        longestStallMs: 0,
+        stallCount500Ms: 0,
+        stallCount1000Ms: 0,
+        p95InterChunkGapMs: 0
+      };
+    }
+
+    const gaps = [];
+    for (let index = 1; index < events.length; index += 1) {
+      gaps.push(Math.max(0, Math.round(events[index].at - events[index - 1].at)));
+    }
+
+    const sortedGaps = [...gaps].sort((left, right) => left - right);
+    return {
+      longestStallMs: Math.max(...gaps),
+      stallCount500Ms: gaps.filter((gap) => gap >= 500).length,
+      stallCount1000Ms: gaps.filter((gap) => gap >= 1000).length,
+      p95InterChunkGapMs: percentileFromSorted(sortedGaps, 95)
+    };
+  }
+
   function createId() {
     const randomPart = Math.random().toString(36).slice(2, 8);
     return `${Date.now()}-${randomPart}`;
@@ -63,6 +97,7 @@
     const streamingMs = Math.max(1, Math.round(run.completedAt - run.firstWordAt));
     const wordsPerSecond = Number((run.finalWordCount / (streamingMs / 1000)).toFixed(2));
     const endToEndWordsPerSecond = Number((run.finalWordCount / (ttlwMs / 1000)).toFixed(2));
+    const progressMetrics = buildProgressMetrics(run);
 
     return {
       id: run.id,
@@ -77,7 +112,11 @@
       streamingMs,
       wordCount: run.finalWordCount,
       wordsPerSecond,
-      endToEndWordsPerSecond
+      endToEndWordsPerSecond,
+      longestStallMs: progressMetrics.longestStallMs,
+      stallCount500Ms: progressMetrics.stallCount500Ms,
+      stallCount1000Ms: progressMetrics.stallCount1000Ms,
+      p95InterChunkGapMs: progressMetrics.p95InterChunkGapMs
     };
   }
 
@@ -121,7 +160,8 @@
         lastObservedWordCount: 0,
         lastVisibleWordCount: 0,
         visibleWordCount: 0,
-        finalWordCount: 0
+        finalWordCount: 0,
+        visibleProgressEvents: []
       };
 
       return this.activeRun;
@@ -181,9 +221,15 @@
       }
 
       if (visibleWordCount > run.lastVisibleWordCount) {
+        const deltaWords = visibleWordCount - run.lastVisibleWordCount;
         run.lastVisibleWordCount = visibleWordCount;
         run.finalWordCount = visibleWordCount;
         run.lastContentChangeAt = observedAt;
+        run.visibleProgressEvents.push({
+          at: observedAt,
+          visibleWordCount,
+          deltaWords
+        });
       }
 
       if (observation.modelSlug && (!run.modelSlug || run.modelSlug === "unknown")) {

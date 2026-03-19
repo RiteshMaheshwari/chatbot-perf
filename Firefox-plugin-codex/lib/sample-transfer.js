@@ -28,6 +28,10 @@
       wordCount: sample.wordCount,
       wordsPerSecond: sample.wordsPerSecond,
       endToEndWordsPerSecond: sample.endToEndWordsPerSecond,
+      longestStallMs: sample.longestStallMs,
+      stallCount500Ms: sample.stallCount500Ms,
+      stallCount1000Ms: sample.stallCount1000Ms,
+      p95InterChunkGapMs: sample.p95InterChunkGapMs,
       reason: sample.reason
     }));
 
@@ -125,6 +129,10 @@
       wordCount,
       wordsPerSecond,
       endToEndWordsPerSecond: finiteNumber(sample.endToEndWordsPerSecond),
+      longestStallMs: finiteNumber(sample.longestStallMs),
+      stallCount500Ms: finiteNumber(sample.stallCount500Ms),
+      stallCount1000Ms: finiteNumber(sample.stallCount1000Ms),
+      p95InterChunkGapMs: finiteNumber(sample.p95InterChunkGapMs),
       reason: typeof sample.reason === "string" && sample.reason.trim() ? sample.reason.trim() : "complete"
     };
   }
