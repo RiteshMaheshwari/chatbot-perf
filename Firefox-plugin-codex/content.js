@@ -195,11 +195,11 @@
     let longest = 0;
 
     for (let index = 1; index < events.length; index += 1) {
-      longest = Math.max(longest, events[index].at - events[index - 1].at);
+      longest = Math.max(longest, Number(events[index].idleGapMs) || 0);
     }
 
-    const lastProgressAt = events.length ? events[events.length - 1].at : run.firstWordAt;
-    return Math.max(longest, now - lastProgressAt);
+    const currentIdleGap = Number(run.stallIdleMsSinceProgress) || 0;
+    return Math.max(longest, currentIdleGap);
   }
 
   function normalizeOverlaySettings(raw) {

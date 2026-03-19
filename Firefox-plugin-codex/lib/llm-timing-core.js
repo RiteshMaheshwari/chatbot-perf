@@ -62,7 +62,7 @@
 
     const gaps = [];
     for (let index = 1; index < events.length; index += 1) {
-      gaps.push(Math.max(0, Math.round(events[index].at - events[index - 1].at)));
+      gaps.push(Math.max(0, Math.round(events[index].idleGapMs || 0)));
     }
 
     const sortedGaps = [...gaps].sort((left, right) => left - right);
@@ -161,7 +161,9 @@
         lastVisibleWordCount: 0,
         visibleWordCount: 0,
         finalWordCount: 0,
-        visibleProgressEvents: []
+        visibleProgressEvents: [],
+        lastObservationAt: startedAt,
+        stallIdleMsSinceProgress: 0
       };
 
       return this.activeRun;
@@ -208,12 +210,18 @@
         : 0;
       const generationActive = Boolean(observation.generationActive);
       const candidateStreaming = Boolean(observation.candidateStreaming);
+      const isActive = generationActive || candidateStreaming;
 
       if (observation.candidateId) {
         run.trackedCandidateId = observation.candidateId;
       }
 
       run.visibleWordCount = visibleWordCount;
+
+      if (run.firstWordAt && observedAt > run.lastObservationAt && !isActive) {
+        run.stallIdleMsSinceProgress += observedAt - run.lastObservationAt;
+      }
+      run.lastObservationAt = observedAt;
 
       if (totalWordCount > run.lastObservedWordCount) {
         run.lastObservedWordCount = totalWordCount;
@@ -228,8 +236,10 @@
         run.visibleProgressEvents.push({
           at: observedAt,
           visibleWordCount,
-          deltaWords
+          deltaWords,
+          idleGapMs: Math.round(run.stallIdleMsSinceProgress)
         });
+        run.stallIdleMsSinceProgress = 0;
       }
 
       if (observation.modelSlug && (!run.modelSlug || run.modelSlug === "unknown")) {
@@ -243,7 +253,6 @@
       }
 
       const idleForMs = observedAt - run.lastContentChangeAt;
-      const isActive = generationActive || candidateStreaming;
 
       if (run.firstWordAt && !isActive && idleForMs >= this.completionSettleMs) {
         run.completedAt = observedAt;

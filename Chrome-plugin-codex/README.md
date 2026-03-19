@@ -16,7 +16,7 @@ It captures:
 
 ## Features
 
-- Floating in-page overlay with live timing state and the latest completed run
+- Floating in-page overlay with live timing state, top-level stall metric, and the latest completed run
 - Popup dashboard with summary metrics, charts, model grouping, and recent runs
 - JSON export and import for restoring history after reinstall
 - Dedicated raw-data page for inspecting full local sample JSON without exporting
@@ -93,6 +93,9 @@ That project includes:
 - Placeholder/search-status phrases such as `Searching the web` and `Working` are ignored.
 - For structured responses, timing waits for actual answer content rather than generic assistant wrappers.
 - TTLW finalizes after streaming stops and content has settled for a site-specific delay.
+- Stall/jitter metrics are captured as `longestStallMs`, `stallCount500Ms`, `stallCount1000Ms`, and `p95InterChunkGapMs`.
+- Stall only counts true idle pauses after the first visible word. Time where the model is still actively thinking, searching, or otherwise working is excluded.
+- The overlay surfaces live `Waiting...`, `Streaming`, and `Finishing` states, plus a top-level `Stall` value.
 
 ## Chrome Notes
 
