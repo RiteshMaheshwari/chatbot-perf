@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Raw Sample Data</title>
+    <link rel="stylesheet" href="raw-data.css">
+  </head>
+  <body>
+    <main class="app">
+      <section class="card hero">
+        <p class="eyebrow">LLM Performance Tracker</p>
+        <h1>Raw Stored Samples</h1>
+        <p class="subtle">Full local sample JSON from `storage.local`. Nothing is exported or uploaded here.</p>
+      </section>
+
+      <section class="card">
+        <div class="section-head">
+          <div>
+            <h2>Stored Data</h2>
+            <p id="status-message" class="subtle">Loading...</p>
+          </div>
+          <div class="actions">
+            <button id="refresh-button" class="primary-button" type="button">Refresh</button>
+            <button id="copy-button" class="secondary-button" type="button">Copy JSON</button>
+          </div>
+        </div>
+
+        <div class="detail-grid">
+          <div>
+            <span class="detail-label">Samples</span>
+            <strong id="samples-count" class="detail-value">0</strong>
+          </div>
+          <div>
+            <span class="detail-label">Raw size</span>
+            <strong id="raw-size" class="detail-value">0 B</strong>
+          </div>
+          <div>
+            <span class="detail-label">Last updated</span>
+            <strong id="updated-at" class="detail-value">-</strong>
+          </div>
+        </div>
+
+        <pre id="raw-output" class="raw-output" aria-label="Raw stored samples"></pre>
+      </section>
+    </main>
+
+    <script src="raw-data.js"></script>
+  </body>
+</html>
