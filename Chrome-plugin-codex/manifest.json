@@ -11,6 +11,7 @@
     "https://chatgpt.com/*",
     "https://chat.openai.com/*",
     "https://claude.ai/*",
+    "https://gemini.google.com/*",
     "https://perplexity.ai/*",
     "https://www.perplexity.ai/*",
     "https://*.workers.dev/*",
@@ -26,6 +27,7 @@
         "https://chatgpt.com/*",
         "https://chat.openai.com/*",
         "https://claude.ai/*",
+        "https://gemini.google.com/*",
         "https://perplexity.ai/*",
         "https://www.perplexity.ai/*"
       ],

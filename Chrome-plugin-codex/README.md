@@ -4,6 +4,7 @@ Chrome extension for measuring LLM UI performance on:
 
 - ChatGPT
 - Claude
+- Gemini
 - Perplexity
 
 It captures:
@@ -104,6 +105,6 @@ That project includes:
 
 ## Caveats
 
-- DOM heuristics can break when ChatGPT, Claude, or Perplexity change markup.
+- DOM heuristics can break when ChatGPT, Claude, Gemini, or Perplexity change markup.
 - The overlay and popup should continue working even if telemetry upload fails.
 - The Cloudflare backend scaffold is implemented, but live deployment and end-to-end upload verification still need to be done in your account.

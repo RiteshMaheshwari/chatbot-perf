@@ -31,6 +31,8 @@
     ? "claude"
     : window.location.hostname.includes("perplexity.ai")
     ? "perplexity"
+    : window.location.hostname.includes("gemini.google.com")
+    ? "gemini"
     : "chatgpt";
   const SITE_CONFIG = {
     chatgpt: {
@@ -88,6 +90,26 @@
       requireMarkdownRoot: false,
       defaultModel: "perplexity",
       completionSettleMs: 1500
+    },
+    gemini: {
+      name: "Gemini",
+      composerSelector:
+        "rich-textarea .ql-editor[contenteditable='true'][role='textbox'], rich-textarea .ql-editor[contenteditable='true'], div.ql-editor[contenteditable='true'][role='textbox'], div.ql-editor[contenteditable='true']",
+      sendButtonSelector:
+        "button.send-button.submit, button[aria-label='Send message']",
+      assistantTurnSelector: "model-response",
+      userTurnSelector: null,
+      conversationTurnSelector: null,
+      assistantMessageSelector:
+        "message-content, structured-content-container, .response-content",
+      markdownContentSelector:
+        "message-content .markdown, .markdown-main-panel, .markdown",
+      streamingContentSelector:
+        "[aria-busy='true'], .thoughts-container:not(:empty), .avatar_spinner_animation[style*='visibility: visible']",
+      streamingAttribute: null,
+      requireMarkdownRoot: true,
+      defaultModel: "gemini",
+      completionSettleMs: 700
     }
   }[SITE];
   const DEFAULT_OVERLAY_SETTINGS = {
