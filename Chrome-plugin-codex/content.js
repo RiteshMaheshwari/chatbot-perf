@@ -3,9 +3,8 @@
 
   const core = globalThis.LlmTimingCore;
   const overlayApi = globalThis.LlmTimingOverlay;
-  const telemetry = globalThis.LlmTelemetry;
 
-  if (!core || !overlayApi || !telemetry) {
+  if (!core || !overlayApi) {
     console.error("[LLM TTFW Tracker] Missing content dependencies.");
     return;
   }
@@ -19,7 +18,6 @@
     truncateText
   } = core;
   const { createOverlayController } = overlayApi;
-  const { sanitizeSampleForTelemetry } = telemetry;
 
   const STORAGE_KEY = "chatgpt_ttfw_samples";
   const OVERLAY_SETTINGS_KEY = "chatgpt_ttfw_overlay_settings";
@@ -781,24 +779,6 @@
     latestSample = sample;
     updateOverlay();
     await persistSample(sample);
-    await queueTelemetrySample(sample);
-  }
-
-  async function queueTelemetrySample(sample) {
-    try {
-      const runtime = typeof browser !== "undefined" ? browser.runtime : chrome.runtime;
-      const event = sanitizeSampleForTelemetry(sample, runtime.getManifest()?.version || null);
-      if (!event) {
-        return;
-      }
-
-      await runtime.sendMessage({
-        type: "telemetry/queue-event",
-        event
-      });
-    } catch (error) {
-      debugLog("telemetry queue failed", error);
-    }
   }
 
   function scheduleProcess(delay = 0) {
