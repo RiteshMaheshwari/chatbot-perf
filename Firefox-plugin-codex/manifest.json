@@ -1,11 +1,10 @@
 {
   "manifest_version": 3,
-  "name": "LLM Performance Tracker",
+  "name": "LLM Chat Benchmark",
   "version": "0.1.0",
-  "description": "Measures ChatGPT, Claude, and Perplexity time to first word, time to last word, and streaming speed in the UI.",
+  "description": "Real user monitoring for LLM based chatbots like ChatGPT, Gemini, Perplexity and Claude. Measures time to first word, time to last word, stall, and streaming speed in the UI.",
   "permissions": [
-    "storage",
-    "alarms"
+    "storage"
   ],
   "host_permissions": [
     "https://chatgpt.com/*",
@@ -13,22 +12,8 @@
     "https://claude.ai/*",
     "https://gemini.google.com/*",
     "https://perplexity.ai/*",
-    "https://www.perplexity.ai/*",
-    "https://*.workers.dev/*",
-    "http://localhost/*",
-    "http://127.0.0.1/*"
+    "https://www.perplexity.ai/*"
   ],
-  "background": {
-    "scripts": [
-      "lib/telemetry.js",
-      "background.js"
-    ],
-    "preferred_environment": [
-      "document",
-      "service_worker"
-    ],
-    "service_worker": "background.js"
-  },
   "content_scripts": [
     {
       "matches": [
@@ -41,7 +26,6 @@
       ],
       "js": [
         "lib/llm-timing-core.js",
-        "lib/telemetry.js",
         "content-overlay.js",
         "content.js"
       ],
@@ -53,7 +37,7 @@
       "16": "icons/icon-16.png",
       "32": "icons/icon-32.png"
     },
-    "default_title": "LLM Performance Tracker",
+    "default_title": "LLM Chat Benchmark",
     "default_popup": "popup.html"
   },
   "icons": {
@@ -65,7 +49,12 @@
   },
   "browser_specific_settings": {
     "gecko": {
-      "id": "chatgpt-ttfw@local.extension",
+      "id": "llm-chat-benchmark@riteshmaheshwari.com",
+      "data_collection_permissions": {
+        "required": [
+          "none"
+        ]
+      },
       "strict_min_version": "121.0"
     }
   }

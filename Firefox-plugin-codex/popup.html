@@ -3,15 +3,15 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>LLM Performance Tracker</title>
+    <title>LLM Chat Benchmark</title>
     <link rel="stylesheet" href="popup.css">
   </head>
   <body>
     <main class="app">
       <header class="header">
         <div>
-          <p class="eyebrow">ChatGPT + Claude + Gemini + Perplexity Timing</p>
-          <h1>LLM Performance Tracker</h1>
+          <p class="eyebrow">Real user monitoring for ChatGPT, Claude, Gemini, and Perplexity</p>
+          <h1>LLM Chat Benchmark</h1>
         </div>
         <div class="header-actions">
           <button id="import-button" class="ghost-button" type="button">Import</button>
@@ -30,28 +30,6 @@
           <input id="overlay-toggle" type="checkbox">
           <span class="toggle-track" aria-hidden="true"></span>
         </label>
-      </section>
-
-      <section class="telemetry-panel">
-        <div class="telemetry-head">
-          <div>
-            <p class="overlay-title">Telemetry Upload</p>
-            <p class="overlay-status">Opt-in only. Sends sanitized metrics, never prompt text.</p>
-          </div>
-          <label class="toggle">
-            <input id="telemetry-toggle" type="checkbox">
-            <span class="toggle-track" aria-hidden="true"></span>
-          </label>
-        </div>
-        <label class="field">
-          <span class="field-label">Worker Endpoint</span>
-          <input id="telemetry-endpoint" class="field-input" type="url" placeholder="https://your-worker.workers.dev/ingest">
-        </label>
-        <div class="telemetry-actions">
-          <button id="telemetry-save" class="ghost-button" type="button">Save</button>
-          <button id="telemetry-flush" class="ghost-button" type="button">Upload Now</button>
-        </div>
-        <p id="telemetry-status" class="telemetry-status">Telemetry is off.</p>
       </section>
 
       <section class="summary" id="summary">
@@ -167,7 +145,6 @@
       </article>
     </template>
     <script src="lib/sample-transfer.js"></script>
-    <script src="lib/telemetry.js"></script>
     <script src="popup.js"></script>
   </body>
 </html>

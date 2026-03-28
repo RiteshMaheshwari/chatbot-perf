@@ -362,73 +362,106 @@
 
       root = document.createElement("section");
       root.id = "chatgpt-ttfw-overlay";
-      root.innerHTML = `
-        <div class="ttfw-header">
-          <div class="ttfw-title-wrap">
-            <div class="ttfw-eyebrow">${options.siteName || "LLM"} UI Timing</div>
-            <div class="ttfw-title">${options.title || "TTFW Overlay"}</div>
-          </div>
-          <div class="ttfw-controls">
-            <span class="ttfw-status-indicator" aria-hidden="true">•</span>
-            <button class="ttfw-minimize" type="button" aria-label="Minimize overlay">−</button>
-            <button class="ttfw-hide" type="button" aria-label="Hide overlay">×</button>
-          </div>
-        </div>
-        <div class="ttfw-body">
-          <div class="ttfw-status-row">
-            <span class="ttfw-label">Status</span>
-            <strong class="ttfw-status-value">Armed</strong>
-          </div>
-          <div class="ttfw-context">Waiting for the next prompt on this page.</div>
-          <div class="ttfw-metrics">
-            <div class="ttfw-metric-row">
-              <span class="ttfw-metric-label">Time to First Word</span>
-              <span class="ttfw-metric-value" data-field="first-word">-</span>
-            </div>
-            <div class="ttfw-metric-row">
-              <span class="ttfw-metric-label">Time to Last Word</span>
-              <span class="ttfw-metric-value" data-field="last-word">-</span>
-            </div>
-            <div class="ttfw-metric-row">
-              <span class="ttfw-metric-label">Stall</span>
-              <span class="ttfw-metric-value" data-field="stall">-</span>
-            </div>
-            <div class="ttfw-metric-row">
-              <span class="ttfw-metric-label">Words/sec</span>
-              <span class="ttfw-metric-value" data-field="wps">-</span>
-            </div>
-            <div class="ttfw-metric-row">
-              <span class="ttfw-metric-label">Word count</span>
-              <span class="ttfw-metric-value" data-field="words">-</span>
-            </div>
-            <div class="ttfw-metric-row">
-              <span class="ttfw-metric-label">Elapsed</span>
-              <span class="ttfw-metric-value" data-field="elapsed">-</span>
-            </div>
-          </div>
-          <div class="ttfw-section">
-            <div class="ttfw-label">Latest Completed</div>
-            <div class="ttfw-summary">No completed runs captured yet.</div>
-          </div>
-        </div>
-      `;
+      const header = document.createElement("div");
+      header.className = "ttfw-header";
+
+      const titleWrap = document.createElement("div");
+      titleWrap.className = "ttfw-title-wrap";
+      const eyebrow = document.createElement("div");
+      eyebrow.className = "ttfw-eyebrow";
+      eyebrow.textContent = `${options.siteName || "LLM"} UI Timing`;
+      const title = document.createElement("div");
+      title.className = "ttfw-title";
+      title.textContent = options.title || "TTFW Overlay";
+      titleWrap.append(eyebrow, title);
+
+      const controls = document.createElement("div");
+      controls.className = "ttfw-controls";
+      const indicator = document.createElement("span");
+      indicator.className = "ttfw-status-indicator";
+      indicator.setAttribute("aria-hidden", "true");
+      indicator.textContent = "•";
+      const minimize = document.createElement("button");
+      minimize.className = "ttfw-minimize";
+      minimize.type = "button";
+      minimize.setAttribute("aria-label", "Minimize overlay");
+      minimize.textContent = "−";
+      const hide = document.createElement("button");
+      hide.className = "ttfw-hide";
+      hide.type = "button";
+      hide.setAttribute("aria-label", "Hide overlay");
+      hide.textContent = "×";
+      controls.append(indicator, minimize, hide);
+      header.append(titleWrap, controls);
+
+      const body = document.createElement("div");
+      body.className = "ttfw-body";
+      const statusRow = document.createElement("div");
+      statusRow.className = "ttfw-status-row";
+      const statusLabel = document.createElement("span");
+      statusLabel.className = "ttfw-label";
+      statusLabel.textContent = "Status";
+      const statusValue = document.createElement("strong");
+      statusValue.className = "ttfw-status-value";
+      statusValue.textContent = "Armed";
+      statusRow.append(statusLabel, statusValue);
+
+      const context = document.createElement("div");
+      context.className = "ttfw-context";
+      context.textContent = "Waiting for the next prompt on this page.";
+
+      const metrics = document.createElement("div");
+      metrics.className = "ttfw-metrics";
+      [
+        ["Time to First Word", "first-word"],
+        ["Time to Last Word", "last-word"],
+        ["Stall", "stall"],
+        ["Words/sec", "wps"],
+        ["Word count", "words"],
+        ["Elapsed", "elapsed"]
+      ].forEach(([labelText, field]) => {
+        const row = document.createElement("div");
+        row.className = "ttfw-metric-row";
+        const label = document.createElement("span");
+        label.className = "ttfw-metric-label";
+        label.textContent = labelText;
+        const value = document.createElement("span");
+        value.className = "ttfw-metric-value";
+        value.dataset.field = field;
+        value.textContent = "-";
+        row.append(label, value);
+        metrics.appendChild(row);
+      });
+
+      const section = document.createElement("div");
+      section.className = "ttfw-section";
+      const latestLabel = document.createElement("div");
+      latestLabel.className = "ttfw-label";
+      latestLabel.textContent = "Latest Completed";
+      const summary = document.createElement("div");
+      summary.className = "ttfw-summary";
+      summary.textContent = "No completed runs captured yet.";
+      section.append(latestLabel, summary);
+
+      body.append(statusRow, context, metrics, section);
+      root.append(header, body);
 
       document.documentElement.appendChild(root);
       refs = {
-        indicator: root.querySelector(".ttfw-status-indicator"),
-        status: root.querySelector(".ttfw-status-value"),
-        context: root.querySelector(".ttfw-context"),
-        elapsed: root.querySelector("[data-field='elapsed']"),
-        firstWord: root.querySelector("[data-field='first-word']"),
-        lastWord: root.querySelector("[data-field='last-word']"),
-        stall: root.querySelector("[data-field='stall']"),
-        wps: root.querySelector("[data-field='wps']"),
-        words: root.querySelector("[data-field='words']"),
-        latest: root.querySelector(".ttfw-summary"),
-        minimize: root.querySelector(".ttfw-minimize"),
-        hide: root.querySelector(".ttfw-hide"),
-        header: root.querySelector(".ttfw-header"),
-        body: root.querySelector(".ttfw-body")
+        indicator,
+        status: statusValue,
+        context,
+        elapsed: metrics.querySelector("[data-field='elapsed']"),
+        firstWord: metrics.querySelector("[data-field='first-word']"),
+        lastWord: metrics.querySelector("[data-field='last-word']"),
+        stall: metrics.querySelector("[data-field='stall']"),
+        wps: metrics.querySelector("[data-field='wps']"),
+        words: metrics.querySelector("[data-field='words']"),
+        latest: summary,
+        minimize,
+        hide,
+        header,
+        body
       };
 
       refs.minimize.addEventListener("click", () => {
