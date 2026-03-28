@@ -1,6 +1,6 @@
 # Privacy Policy for LLM Chat Benchmark
 
-Last updated: March 27, 2026
+Last updated: March 28, 2026
 
 LLM Chat Benchmark measures visible chat-response performance for supported AI chatbot websites, including ChatGPT, Claude, Gemini, and Perplexity.
 
@@ -14,7 +14,7 @@ The extension reads chat page content on supported sites in order to measure:
 - stall / jitter metrics
 - response word counts
 
-The extension may also read limited prompt and page metadata needed for the local benchmark UI, such as a short prompt preview, page title, model name, and page URL.
+The extension may also read limited page context needed to classify and display local benchmark results, such as site hostname and model name.
 
 ## What data is stored
 
@@ -24,10 +24,13 @@ Stored data can include:
 
 - timing metrics and derived performance statistics
 - model and site name
+- session identifier
 - timestamp and session information
 - prompt word count
-- a short local prompt preview
-- page title and URL
+- site hostname
+- locale and timezone
+- page visibility state at the start of a benchmark
+- limited browser-reported connection context, when available
 - optional imported benchmark data that you choose to load
 
 ## What data is sent off-device

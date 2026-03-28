@@ -196,7 +196,9 @@ function renderOverlaySettings(settings) {
 }
 
 function sampleTitle(sample) {
-  return sample.promptPreview || sample.title || "Untitled prompt";
+  const site = sample.site ? String(sample.site).toUpperCase() : "RUN";
+  const model = sample.model && sample.model !== "unknown" ? sample.model : null;
+  return model ? `${site} • ${model}` : `${site} benchmark run`;
 }
 
 function sampleModel(sample) {

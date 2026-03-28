@@ -3,7 +3,6 @@ const OVERLAY_SETTINGS_KEY = "chatgpt_ttfw_overlay_settings";
 const storage = typeof browser !== "undefined" ? browser.storage.local : chrome.storage.local;
 const storageEvents = typeof browser !== "undefined" ? browser.storage : chrome.storage;
 const transfer = globalThis.LlmSampleTransfer;
-const telemetry = globalThis.LlmTelemetry;
 const runtime = typeof browser !== "undefined" ? browser.runtime : chrome.runtime;
 let selectedRange = 10;
 
@@ -137,16 +136,83 @@ function buildChartSvg(values) {
 
   const midY = padding.top + innerHeight / 2;
 
-  return `
-    <svg class="chart-svg" viewBox="0 0 ${width} ${height}" aria-hidden="true">
-      <line class="chart-grid-line" x1="${padding.left}" y1="${padding.top}" x2="${padding.left + innerWidth}" y2="${padding.top}"></line>
-      <line class="chart-grid-line" x1="${padding.left}" y1="${midY}" x2="${padding.left + innerWidth}" y2="${midY}"></line>
-      <line class="chart-grid-line" x1="${padding.left}" y1="${padding.top + innerHeight}" x2="${padding.left + innerWidth}" y2="${padding.top + innerHeight}"></line>
-      <polygon class="chart-area" points="${area}"></polygon>
-      <polyline class="chart-line" points="${polyline}"></polyline>
-      <circle class="chart-point" cx="${points[points.length - 1].x}" cy="${points[points.length - 1].y}" r="3.5"></circle>
-    </svg>
-  `;
+  return {
+    width,
+    height,
+    innerWidth,
+    innerHeight,
+    padding,
+    midY,
+    area,
+    polyline,
+    lastPoint: points[points.length - 1]
+  };
+}
+
+function createSvgNode(name, attributes) {
+  const element = document.createElementNS("http://www.w3.org/2000/svg", name);
+  Object.entries(attributes).forEach(([key, value]) => {
+    element.setAttribute(key, String(value));
+  });
+  return element;
+}
+
+function createChartFragment(values) {
+  const chart = buildChartSvg(values);
+  const fragment = document.createDocumentFragment();
+  const svg = createSvgNode("svg", {
+    class: "chart-svg",
+    viewBox: `0 0 ${chart.width} ${chart.height}`,
+    "aria-hidden": "true"
+  });
+
+  svg.appendChild(createSvgNode("line", {
+    class: "chart-grid-line",
+    x1: chart.padding.left,
+    y1: chart.padding.top,
+    x2: chart.padding.left + chart.innerWidth,
+    y2: chart.padding.top
+  }));
+  svg.appendChild(createSvgNode("line", {
+    class: "chart-grid-line",
+    x1: chart.padding.left,
+    y1: chart.midY,
+    x2: chart.padding.left + chart.innerWidth,
+    y2: chart.midY
+  }));
+  svg.appendChild(createSvgNode("line", {
+    class: "chart-grid-line",
+    x1: chart.padding.left,
+    y1: chart.padding.top + chart.innerHeight,
+    x2: chart.padding.left + chart.innerWidth,
+    y2: chart.padding.top + chart.innerHeight
+  }));
+  svg.appendChild(createSvgNode("polygon", {
+    class: "chart-area",
+    points: chart.area
+  }));
+  svg.appendChild(createSvgNode("polyline", {
+    class: "chart-line",
+    points: chart.polyline
+  }));
+  svg.appendChild(createSvgNode("circle", {
+    class: "chart-point",
+    cx: chart.lastPoint.x,
+    cy: chart.lastPoint.y,
+    r: 3.5
+  }));
+
+  const axis = document.createElement("div");
+  axis.className = "chart-axis";
+  axis.setAttribute("aria-hidden", "true");
+  const oldest = document.createElement("span");
+  oldest.textContent = "Oldest";
+  const latest = document.createElement("span");
+  latest.textContent = "Latest";
+  axis.append(oldest, latest);
+
+  fragment.append(svg, axis);
+  return fragment;
 }
 
 function renderChart(containerId, samples, key, formatter) {
@@ -161,13 +227,7 @@ function renderChart(containerId, samples, key, formatter) {
   }
 
   container.className = "chart-canvas";
-  container.innerHTML = `
-    ${buildChartSvg(values)}
-    <div class="chart-axis" aria-hidden="true">
-      <span>Oldest</span>
-      <span>Latest</span>
-    </div>
-  `;
+  container.replaceChildren(createChartFragment(values));
   container.setAttribute("aria-label", chronological.map((sample) => formatter(sample[key])).join(", "));
 }
 
@@ -188,34 +248,6 @@ function normalizeOverlaySettings(raw) {
   };
 }
 
-function renderTelemetrySettings(settings, state) {
-  const normalizedSettings = telemetry.normalizeTelemetrySettings(settings);
-  const normalizedState = telemetry.normalizeTelemetryState(state);
-
-  document.getElementById("telemetry-toggle").checked = normalizedSettings.enabled;
-  document.getElementById("telemetry-endpoint").value = normalizedSettings.endpointUrl;
-
-  let status = normalizedSettings.enabled
-    ? "Telemetry enabled."
-    : "Telemetry is off.";
-
-  if (normalizedSettings.enabled && !normalizedSettings.endpointUrl) {
-    status = "Telemetry is on, but the Worker endpoint is missing.";
-  } else if (normalizedState.lastError) {
-    status = normalizedState.lastError;
-  } else if (normalizedState.lastSuccessAt) {
-    status = `Last upload ${new Date(normalizedState.lastSuccessAt).toLocaleTimeString([], {
-      hour: "numeric",
-      minute: "2-digit",
-      second: "2-digit"
-    })}. Queue ${normalizedState.queueSize}.`;
-  } else if (normalizedState.queueSize > 0) {
-    status = `Queue has ${normalizedState.queueSize} sample${normalizedState.queueSize === 1 ? "" : "s"} waiting.`;
-  }
-
-  document.getElementById("telemetry-status").textContent = status;
-}
-
 function renderOverlaySettings(settings) {
   const normalized = normalizeOverlaySettings(settings);
   document.getElementById("overlay-toggle").checked = normalized.enabled;
@@ -225,7 +257,9 @@ function renderOverlaySettings(settings) {
 }
 
 function sampleTitle(sample) {
-  return sample.promptPreview || sample.title || "Untitled prompt";
+  const site = sample.site ? String(sample.site).toUpperCase() : "RUN";
+  const model = sample.model && sample.model !== "unknown" ? sample.model : null;
+  return model ? `${site} • ${model}` : `${site} benchmark run`;
 }
 
 function sampleModel(sample) {
@@ -265,18 +299,31 @@ function renderModels(samples) {
   rows.forEach(({ model, entries }) => {
     const row = document.createElement("article");
     row.className = "model-row";
-    row.innerHTML = `
-      <div class="model-top">
-        <strong class="model-name">${model}</strong>
-        <span class="model-count">${entries.length} runs</span>
-      </div>
-      <div class="model-stats">
-        <span class="chip">Avg TTFW ${formatMs(average(entries, "ttfwMs"))}</span>
-        <span class="chip">Avg Stall ${formatMs(average(entries, "longestStallMs"))}</span>
-        <span class="chip">Avg WPS ${formatNumber(average(entries, "wordsPerSecond"))}</span>
-        <span class="chip">P50 WPS ${formatNumber(percentile(entries, "wordsPerSecond", 50))}</span>
-      </div>
-    `;
+    const top = document.createElement("div");
+    top.className = "model-top";
+    const name = document.createElement("strong");
+    name.className = "model-name";
+    name.textContent = model;
+    const count = document.createElement("span");
+    count.className = "model-count";
+    count.textContent = `${entries.length} runs`;
+    top.append(name, count);
+
+    const stats = document.createElement("div");
+    stats.className = "model-stats";
+    [
+      `Avg TTFW ${formatMs(average(entries, "ttfwMs"))}`,
+      `Avg Stall ${formatMs(average(entries, "longestStallMs"))}`,
+      `Avg WPS ${formatNumber(average(entries, "wordsPerSecond"))}`,
+      `P50 WPS ${formatNumber(percentile(entries, "wordsPerSecond", 50))}`
+    ].forEach((text) => {
+      const chip = document.createElement("span");
+      chip.className = "chip";
+      chip.textContent = text;
+      stats.appendChild(chip);
+    });
+
+    row.append(top, stats);
     list.appendChild(row);
   });
 }
@@ -318,12 +365,7 @@ function renderSamples(samples) {
 }
 
 async function loadSamples() {
-  const data = await storage.get([
-    STORAGE_KEY,
-    OVERLAY_SETTINGS_KEY,
-    telemetry.TELEMETRY_SETTINGS_KEY,
-    telemetry.TELEMETRY_STATE_KEY
-  ]);
+  const data = await storage.get([STORAGE_KEY, OVERLAY_SETTINGS_KEY]);
   const allSamples = Array.isArray(data[STORAGE_KEY]) ? data[STORAGE_KEY] : [];
   const samples = filterSamples(allSamples);
   renderRangeState(allSamples.length, samples.length);
@@ -332,7 +374,6 @@ async function loadSamples() {
   renderCharts(samples);
   renderSamples(samples);
   renderOverlaySettings(data[OVERLAY_SETTINGS_KEY]);
-  renderTelemetrySettings(data[telemetry.TELEMETRY_SETTINGS_KEY], data[telemetry.TELEMETRY_STATE_KEY]);
 }
 
 document.getElementById("export-button").addEventListener("click", async () => {
@@ -349,27 +390,6 @@ document.getElementById("import-button").addEventListener("click", () => {
 document.getElementById("raw-data-button").addEventListener("click", () => {
   const runtime = typeof browser !== "undefined" ? browser.runtime : chrome.runtime;
   window.open(runtime.getURL("raw-data.html"), "_blank", "noopener,noreferrer");
-});
-
-document.getElementById("telemetry-save").addEventListener("click", async () => {
-  const nextSettings = telemetry.normalizeTelemetrySettings({
-    enabled: document.getElementById("telemetry-toggle").checked,
-    endpointUrl: document.getElementById("telemetry-endpoint").value
-  });
-
-  await storage.set({
-    [telemetry.TELEMETRY_SETTINGS_KEY]: nextSettings
-  });
-  await loadSamples();
-});
-
-document.getElementById("telemetry-flush").addEventListener("click", async () => {
-  try {
-    await runtime.sendMessage({ type: "telemetry/flush-now" });
-  } catch (_error) {
-    // Ignore runtime wakeup issues; loadSamples will show current state.
-  }
-  await loadSamples();
 });
 
 document.getElementById("clear-button").addEventListener("click", async () => {
@@ -406,9 +426,7 @@ if (storageEvents.onChanged && typeof storageEvents.onChanged.addListener === "f
       areaName === "local" &&
       (
         changes[STORAGE_KEY] ||
-        changes[OVERLAY_SETTINGS_KEY] ||
-        changes[telemetry.TELEMETRY_SETTINGS_KEY] ||
-        changes[telemetry.TELEMETRY_STATE_KEY]
+        changes[OVERLAY_SETTINGS_KEY]
       )
     ) {
       void loadSamples();

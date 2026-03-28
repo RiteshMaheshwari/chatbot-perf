@@ -651,8 +651,6 @@
       site: SITE,
       model: metrics.modelSlug || "unknown",
       hostname: context.hostname || window.location.hostname,
-      url: location.href,
-      title: document.title,
       startedAt: new Date(metrics.startedWallClock).toISOString(),
       locale: context.locale || null,
       timezone: context.timezone || null,
@@ -664,7 +662,6 @@
       connectionRttMs: context.connectionRttMs ?? null,
       connectionDownlinkMbps: context.connectionDownlinkMbps ?? null,
       connectionSaveData: context.connectionSaveData ?? null,
-      promptPreview: run.promptPreview,
       inputWords: run.inputWordCount,
       ttfwMs: metrics.ttfwMs,
       ttlwMs: metrics.ttlwMs,
@@ -728,7 +725,7 @@
       status = "complete";
       statusText = "Complete";
       statusIcon = "✓";
-      promptText = truncateText(overlaySample.promptPreview || "Last completed prompt.", 96);
+      promptText = "Last completed run.";
       elapsedText = formatMs(overlaySample.ttlwMs);
       firstWordText = formatMs(overlaySample.ttfwMs);
       lastWordText = formatMs(overlaySample.ttlwMs);
@@ -958,10 +955,41 @@
     }
   }
 
+  function sanitizeStoredSamples(samples) {
+    let changed = false;
+    const sanitized = samples.map((sample) => {
+      if (!sample || typeof sample !== "object" || Array.isArray(sample)) {
+        return sample;
+      }
+
+      const next = { ...sample };
+      if ("promptPreview" in next) {
+        delete next.promptPreview;
+        changed = true;
+      }
+      if ("url" in next) {
+        delete next.url;
+        changed = true;
+      }
+      if ("title" in next) {
+        delete next.title;
+        changed = true;
+      }
+      return next;
+    });
+
+    return { sanitized, changed };
+  }
+
   async function loadInitialState() {
     const storage = getStorageArea();
     const data = await storage.get([STORAGE_KEY, OVERLAY_SETTINGS_KEY]);
-    const samples = Array.isArray(data[STORAGE_KEY]) ? data[STORAGE_KEY] : [];
+    const storedSamples = Array.isArray(data[STORAGE_KEY]) ? data[STORAGE_KEY] : [];
+    const { sanitized: samples, changed } = sanitizeStoredSamples(storedSamples);
+
+    if (changed) {
+      await storage.set({ [STORAGE_KEY]: samples });
+    }
 
     latestSample = samples[0] || null;
     overlaySettings = normalizeOverlaySettings(data[OVERLAY_SETTINGS_KEY]);
