@@ -110,12 +110,14 @@
     .c-wps    {color:#16a34a}
     .c-e2e    {color:#ea580c}
     .c-wc     {color:#7c3aed}
+    .c-stall  {color:#dc2626}
     .bg-ttfw   {background:rgba(79,70,229,.08);  border-color:#4f46e5}
     .bg-stream {background:rgba(13,148,136,.08);  border-color:#0d9488}
     .bg-ttlw   {background:rgba(217,119,6,.08);   border-color:#d97706}
     .bg-wps    {background:rgba(22,163,74,.08);   border-color:#16a34a}
     .bg-e2e    {background:rgba(234,88,12,.08);   border-color:#ea580c}
     .bg-wc     {background:rgba(124,58,237,.08);  border-color:#7c3aed}
+    .bg-stall  {background:rgba(220,38,38,.08);   border-color:#dc2626}
     .bg-formula{background:rgba(79,70,229,.06);border-color:#a5b4fc}
 
     /* Responsive */
@@ -155,6 +157,11 @@
         <div class="anno-name c-ttlw">TTLW</div>
         <div class="anno-val c-ttlw">Time to Last Word</div>
         <div class="anno-desc">Total wall-clock time from send to the full response being complete. What the user actually waited.</div>
+      </div>
+      <div class="anno bg-stall">
+        <div class="anno-name c-stall">Smoothness</div>
+        <div class="anno-val c-stall">longestStallMs</div>
+        <div class="anno-desc">The longest freeze between chunks during streaming. A high WPS with a large stall still feels broken. Lower is better.</div>
       </div>
     </div>
   </div>
@@ -213,6 +220,14 @@
       <div class="card-title c-e2e">endToEndWordsPerSecond</div>
       <div class="card-body">The user-perceived throughput — words delivered per second of total wait time. Penalises high TTFW. A model with 50 streaming WPS but 5s TTFW will have a much lower E2E WPS.</div>
       <div class="card-formula">wordCount / (TTLW / 1000)</div>
+    </div>
+
+    <div class="card">
+      <div class="card-icon">⏸</div>
+      <div class="card-name">Streaming Smoothness</div>
+      <div class="card-title c-stall">longestStallMs</div>
+      <div class="card-body">The longest pause between consecutive chunks during streaming. Even a fast average WPS can feel janky if the stream freezes mid-response. Lower is better — ideally under 200 ms.</div>
+      <div class="card-formula">max inter-chunk gap during streaming</div>
     </div>
 
   </div>
@@ -302,7 +317,7 @@
 <div class="section">
   <p class="section-label">What drives each metric</p>
   <div style="background:#ffffff;border:1px solid #e2e8f0;border-radius:16px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.06)">
-    <svg viewBox="0 0 760 420" width="100%" id="factorSvg" style="overflow:visible"></svg>
+    <svg viewBox="0 0 760 510" width="100%" id="factorSvg" style="overflow:visible"></svg>
   </div>
 </div>
 
@@ -503,6 +518,12 @@ updateCalc();
       metric:'endToEndWPS', mColor:'#ea580c',
       meaning:'User-felt efficiency\n"Words per second I waited for"',
       y:360,
+    },
+    {
+      factors:['Chunk batching','Inference spikes','Network jitter'],
+      metric:'longestStallMs', mColor:'#dc2626',
+      meaning:'Streaming smoothness\n"Did the response freeze mid-way?"',
+      y:450,
     },
   ];
 
