@@ -16,9 +16,7 @@ The supported public surface is:
 - [extensions/chrome](./extensions/chrome): Chrome / Edge extension
 - [extensions/firefox](./extensions/firefox): Firefox extension
 - [shared](./shared): canonical shared timing and sample-transfer source
-- [assets](./assets): diagrams and explanatory assets directly related to the extensions
 - [docs](./docs): supporting explainer pages and repo-facing documentation
-- [fixtures](./fixtures): narrow development fixtures used to validate adapters and timing behavior
 
 Out of scope for the first public pass:
 
@@ -30,9 +28,7 @@ Out of scope for the first public pass:
 - [extensions/chrome](./extensions/chrome): Chrome / Edge extension source, store docs, screenshots, and packaging script
 - [extensions/firefox](./extensions/firefox): Firefox extension source, AMO docs, screenshots, and packaging script
 - [shared](./shared): single canonical source for code duplicated into both browser extensions
-- [assets/ttfw-diagrams](./assets/ttfw-diagrams): diagrams explaining TTFW, TTLW, WPS, and request/response flow
 - [docs](./docs): standalone explainer/dashboard HTML docs kept outside the extension packages
-- [fixtures/site-captures](./fixtures/site-captures): captured development fixtures such as Gemini markup samples
 
 ## Current Status
 
