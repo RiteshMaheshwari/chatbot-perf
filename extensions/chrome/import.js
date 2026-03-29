@@ -1,5 +1,5 @@
 const STORAGE_KEY = "chatgpt_ttfw_samples";
-const MAX_SAMPLES = 200;
+const MAX_SAMPLES = 10000;
 const storage = typeof browser !== "undefined" ? browser.storage.local : chrome.storage.local;
 const transfer = globalThis.LlmSampleTransfer;
 

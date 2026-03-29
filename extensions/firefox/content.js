@@ -21,7 +21,7 @@
 
   const STORAGE_KEY = "chatgpt_ttfw_samples";
   const OVERLAY_SETTINGS_KEY = "chatgpt_ttfw_overlay_settings";
-  const MAX_SAMPLES = 200;
+  const MAX_SAMPLES = 10000;
   const HARD_TIMEOUT_MS = 120000;
   const DEBUG = false;
   const SESSION_ID = createSessionId();
