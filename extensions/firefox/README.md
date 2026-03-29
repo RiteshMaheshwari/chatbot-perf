@@ -1,6 +1,6 @@
 # LLM Chat Benchmark
 
-Firefox extension for real user monitoring of LLM based chatbots like:
+Firefox extension for real user monitoring of LLM-based chatbots such as:
 
 - ChatGPT
 - Claude
@@ -14,8 +14,6 @@ It captures:
 - Streaming speed in words per second (WPS)
 - Prompt input size
 - Basic page/runtime context such as site, model, timezone, and visibility state
-
-Real user monitoring for LLM based chatbots like ChatGPT, Gemini, Perplexity and Claude.
 
 ## Features
 

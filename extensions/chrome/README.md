@@ -1,6 +1,6 @@
 # LLM Chat Benchmark
 
-Chrome extension for real user monitoring of LLM based chatbots like:
+Chrome and Edge extension for real user monitoring of LLM-based chatbots such as:
 
 - ChatGPT
 - Claude
@@ -14,8 +14,6 @@ It captures:
 - Streaming speed in words per second (WPS)
 - Prompt input size
 - Basic page/runtime context such as site, model, timezone, and visibility state
-
-Real user monitoring for LLM based chatbots like ChatGPT, Gemini, Perplexity and Claude.
 
 ## Features
 
@@ -42,7 +40,7 @@ The extension is split into layers:
 1. Open `chrome://extensions`.
 2. Turn on `Developer mode`.
 3. Click `Load unpacked`.
-4. Select [manifest.json](./manifest.json).
+4. Select the [chrome](./) extension directory.
 
 Reload the unpacked extension after manifest or shared-lib changes.
 

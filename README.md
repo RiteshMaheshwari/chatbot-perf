@@ -38,6 +38,24 @@ Out of scope for the first public pass:
 - The backend scaffold is intentionally excluded from the supported public client story.
 - Packaging scripts exist per browser for store-ready artifacts.
 
+## Quick Start
+
+1. Sync the shared library copies into both extensions.
+2. Run the shared checks and tests.
+3. Load either browser extension from the `extensions/` directory.
+
+```bash
+npm run sync:shared
+npm run check:shared
+npm run test:shared-core
+```
+
+For browser-specific packaging and smoke testing, see:
+
+- [extensions/chrome/README.md](./extensions/chrome/README.md)
+- [extensions/firefox/README.md](./extensions/firefox/README.md)
+- [docs/SMOKE_TESTS.md](./docs/SMOKE_TESTS.md)
+
 ## Development Commands
 
 The repo uses Node's built-in tooling and simple shell scripts for verification.
