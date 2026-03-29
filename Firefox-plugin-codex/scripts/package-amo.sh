@@ -4,8 +4,10 @@ set -euo pipefail
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 package_dir="$(cd "$script_dir/.." && pwd)"
 output_dir="${1:-"$package_dir/../dist"}"
-output_file="$output_dir/llm-performance-tracker-firefox.zip"
+output_file="$output_dir/llm-chat-benchmark-firefox.zip"
 temp_dir="$(mktemp -d)"
+
+"$package_dir/../scripts/sync-shared-libs.sh"
 
 cleanup() {
   rm -rf "$temp_dir"

@@ -1,0 +1,83 @@
+{
+  "startRun": {
+    "triggerType": "submit",
+    "startedWallClock": 1000,
+    "promptText": "Benchmark this response",
+    "inputWordCount": 3,
+    "modelSlug": "fixture-model"
+  },
+  "steps": [
+    {
+      "now": 100,
+      "totalWordCount": 1,
+      "visibleWordCount": 1,
+      "generationActive": true,
+      "candidateStreaming": true,
+      "candidateId": "turn-1"
+    },
+    {
+      "now": 200,
+      "totalWordCount": 2,
+      "visibleWordCount": 2,
+      "generationActive": true,
+      "candidateStreaming": true,
+      "candidateId": "turn-1"
+    },
+    {
+      "now": 500,
+      "totalWordCount": 2,
+      "visibleWordCount": 2,
+      "generationActive": false,
+      "candidateStreaming": false,
+      "candidateId": "turn-1"
+    },
+    {
+      "now": 800,
+      "totalWordCount": 4,
+      "visibleWordCount": 4,
+      "generationActive": true,
+      "candidateStreaming": true,
+      "candidateId": "turn-1"
+    },
+    {
+      "now": 900,
+      "totalWordCount": 4,
+      "visibleWordCount": 4,
+      "generationActive": false,
+      "candidateStreaming": false,
+      "candidateId": "turn-1"
+    },
+    {
+      "now": 1200,
+      "totalWordCount": 4,
+      "visibleWordCount": 4,
+      "generationActive": false,
+      "candidateStreaming": false,
+      "candidateId": "turn-1"
+    },
+    {
+      "now": 1400,
+      "totalWordCount": 4,
+      "visibleWordCount": 4,
+      "generationActive": false,
+      "candidateStreaming": false,
+      "candidateId": "turn-1"
+    },
+    {
+      "now": 1500,
+      "totalWordCount": 6,
+      "visibleWordCount": 6,
+      "generationActive": true,
+      "candidateStreaming": true,
+      "candidateId": "turn-1"
+    },
+    {
+      "now": 2600,
+      "totalWordCount": 6,
+      "visibleWordCount": 6,
+      "generationActive": false,
+      "candidateStreaming": false,
+      "candidateId": "turn-1"
+    }
+  ]
+}

@@ -29,7 +29,8 @@ Real user monitoring for LLM based chatbots like ChatGPT, Gemini, Perplexity and
 
 The extension is split into layers:
 
-- Measurement core: [llm-timing-core.js](/Users/rndm/Code/chatbot-perf/Firefox-plugin-codex/lib/llm-timing-core.js)
+- Canonical shared source: [shared/README.md](/Users/rndm/Code/chatbot-perf/shared/README.md)
+- Generated shared libs: [llm-timing-core.js](/Users/rndm/Code/chatbot-perf/Firefox-plugin-codex/lib/llm-timing-core.js), [sample-transfer.js](/Users/rndm/Code/chatbot-perf/Firefox-plugin-codex/lib/sample-transfer.js)
 - Overlay UI: [content-overlay.js](/Users/rndm/Code/chatbot-perf/Firefox-plugin-codex/content-overlay.js)
 - Site adapter and local persistence: [content.js](/Users/rndm/Code/chatbot-perf/Firefox-plugin-codex/content.js)
 - Popup UI: [popup.html](/Users/rndm/Code/chatbot-perf/Firefox-plugin-codex/popup.html), [popup.js](/Users/rndm/Code/chatbot-perf/Firefox-plugin-codex/popup.js), [popup.css](/Users/rndm/Code/chatbot-perf/Firefox-plugin-codex/popup.css)
@@ -43,12 +44,14 @@ The extension is split into layers:
 3. Click `Load Temporary Add-on...`.
 4. Select [manifest.json](/Users/rndm/Code/chatbot-perf/Firefox-plugin-codex/manifest.json).
 
-If you already had the add-on loaded, reload it after manifest or background-script changes.
+If you already had the add-on loaded, reload it after manifest or shared-lib changes.
 
 ## Release Prep
 
 - AMO submission checklist: [AMO_SUBMISSION.md](/Users/rndm/Code/chatbot-perf/Firefox-plugin-codex/AMO_SUBMISSION.md)
+- Privacy policy: [PRIVACY_POLICY.md](/Users/rndm/Code/chatbot-perf/Firefox-plugin-codex/PRIVACY_POLICY.md)
 - Packaging script: [scripts/package-amo.sh](/Users/rndm/Code/chatbot-perf/Firefox-plugin-codex/scripts/package-amo.sh)
+- Shared-source sync: [scripts/sync-shared-libs.sh](/Users/rndm/Code/chatbot-perf/scripts/sync-shared-libs.sh)
 
 ## Storage Keys
 
@@ -60,7 +63,7 @@ If you already had the add-on loaded, reload it after manifest or background-scr
 - Export is available from the popup.
 - Import opens a dedicated extension page so Firefox popup teardown does not interrupt file selection.
 - Raw Data opens a dedicated extension page that shows the full locally stored JSON.
-- Exported files exclude confidential fields such as prompt preview, page URL, and page title.
+- Exported files exclude sensitive fields such as prompt preview, page URL, and page title when present in older stored or imported samples.
 
 ## Timing Notes
 

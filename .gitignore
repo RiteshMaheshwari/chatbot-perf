@@ -1,0 +1,8 @@
+.DS_Store
+dist/
+node_modules/
+coverage/
+.nyc_output/
+*.log
+**/.DS_Store
+**/web-ext-artifacts/

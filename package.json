@@ -1,0 +1,10 @@
+{
+  "name": "llm-chat-benchmark",
+  "private": true,
+  "scripts": {
+    "sync:shared": "./scripts/sync-shared-libs.sh",
+    "check:shared": "./scripts/check-shared-libs.sh",
+    "test:shared-core": "node --test shared/tests/*.test.js",
+    "verify:extensions": "node --check Chrome-plugin-codex/content.js && node --check Chrome-plugin-codex/popup.js && node --check Firefox-plugin-codex/content.js && node --check Firefox-plugin-codex/popup.js"
+  }
+}

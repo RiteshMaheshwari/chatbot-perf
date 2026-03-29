@@ -29,7 +29,8 @@ Real user monitoring for LLM based chatbots like ChatGPT, Gemini, Perplexity and
 
 The extension is split into layers:
 
-- Measurement core: [llm-timing-core.js](/Users/rndm/Code/chatbot-perf/Chrome-plugin-codex/lib/llm-timing-core.js)
+- Canonical shared source: [shared/README.md](/Users/rndm/Code/chatbot-perf/shared/README.md)
+- Generated shared libs: [llm-timing-core.js](/Users/rndm/Code/chatbot-perf/Chrome-plugin-codex/lib/llm-timing-core.js), [sample-transfer.js](/Users/rndm/Code/chatbot-perf/Chrome-plugin-codex/lib/sample-transfer.js)
 - Overlay UI: [content-overlay.js](/Users/rndm/Code/chatbot-perf/Chrome-plugin-codex/content-overlay.js)
 - Site adapter and local persistence: [content.js](/Users/rndm/Code/chatbot-perf/Chrome-plugin-codex/content.js)
 - Popup UI: [popup.html](/Users/rndm/Code/chatbot-perf/Chrome-plugin-codex/popup.html), [popup.js](/Users/rndm/Code/chatbot-perf/Chrome-plugin-codex/popup.js), [popup.css](/Users/rndm/Code/chatbot-perf/Chrome-plugin-codex/popup.css)
@@ -43,12 +44,14 @@ The extension is split into layers:
 3. Click `Load unpacked`.
 4. Select [manifest.json](/Users/rndm/Code/chatbot-perf/Chrome-plugin-codex/manifest.json).
 
-Reload the unpacked extension after manifest or background-service-worker changes.
+Reload the unpacked extension after manifest or shared-lib changes.
 
 ## Release Prep
 
 - Chrome Web Store checklist: [CHROME_STORE_SUBMISSION.md](/Users/rndm/Code/chatbot-perf/Chrome-plugin-codex/CHROME_STORE_SUBMISSION.md)
+- Privacy policy: [PRIVACY_POLICY.md](/Users/rndm/Code/chatbot-perf/Chrome-plugin-codex/PRIVACY_POLICY.md)
 - Packaging script: [scripts/package-cws.sh](/Users/rndm/Code/chatbot-perf/Chrome-plugin-codex/scripts/package-cws.sh)
+- Shared-source sync: [scripts/sync-shared-libs.sh](/Users/rndm/Code/chatbot-perf/scripts/sync-shared-libs.sh)
 
 ## Storage Keys
 
@@ -60,7 +63,7 @@ Reload the unpacked extension after manifest or background-service-worker change
 - Export is available from the popup.
 - Import opens a dedicated extension page so the popup closing does not interrupt file selection.
 - Raw Data opens a dedicated extension page that shows the full locally stored JSON.
-- Exported files exclude confidential fields such as prompt preview, page URL, and page title.
+- Exported files exclude sensitive fields such as prompt preview, page URL, and page title when present in older stored or imported samples.
 
 ## Timing Notes
 

@@ -25,6 +25,7 @@ Privacy policy file for publishing:
 Run:
 
 ```bash
+../../scripts/sync-shared-libs.sh
 ./scripts/package-cws.sh
 ```
 
@@ -49,6 +50,7 @@ Suggested privacy posture:
 
 - The extension stores timing history locally in extension storage.
 - It does not send prompt content or telemetry to a remote server in this release.
+- Sensitive persisted fields are minimized; benchmark history keeps metrics and coarse context rather than full prompt or page identifiers.
 
 ## Remaining Submission Checks
 

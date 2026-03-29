@@ -1,5 +1,7 @@
 # Cloudflare Telemetry Backend
 
+This scaffold is experimental and intentionally **out of scope** for the supported public client surface described in the repo root README.
+
 This Worker receives sanitized timing batches from the Firefox extension and stores them in Cloudflare D1.
 
 ## What this backend does

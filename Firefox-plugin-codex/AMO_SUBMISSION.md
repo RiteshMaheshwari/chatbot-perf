@@ -7,7 +7,7 @@ This package is ready to submit to Firefox Add-ons with local-only storage and n
 - Supported sites: ChatGPT, Claude, Gemini, Perplexity
 - Storage: local only
 - Remote telemetry: removed from the shipped extension
-- Add-on ID: `llm-performance-tracker@riteshmaheshwari.com`
+- Add-on ID: `llm-chat-benchmark@riteshmaheshwari.com`
 
 ## Remaining Submission Checks
 
@@ -27,21 +27,23 @@ This package is ready to submit to Firefox Add-ons with local-only storage and n
 Run:
 
 ```bash
+../../scripts/sync-shared-libs.sh
 ./scripts/package-amo.sh
 ```
 
-The script writes a zip to `../dist/llm-performance-tracker-firefox.zip` by default.
+The script writes a zip to `../dist/llm-chat-benchmark-firefox.zip` by default.
 
 ## Review Notes
 
 - The extension does not transmit prompt text or any telemetry data.
 - The overlay, import flow, and raw-data viewer all work locally from extension storage.
+- The Firefox package includes a local-only privacy policy file at [PRIVACY_POLICY.md](/Users/rndm/Code/chatbot-perf/Firefox-plugin-codex/PRIVACY_POLICY.md).
 - If remote telemetry is added later, update the privacy policy and AMO listing before release.
 
 ## Submission Steps
 
 1. Log in to the [AMO Developer Hub](https://addons.mozilla.org/en-US/developers/).
 2. Choose `Submit a New Add-on`.
-3. Upload `dist/llm-performance-tracker-firefox.zip`.
+3. Upload `dist/llm-chat-benchmark-firefox.zip`.
 4. Select Firefox compatibility.
 5. Complete the listing details and submit.

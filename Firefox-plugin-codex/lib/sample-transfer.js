@@ -1,9 +1,33 @@
 (function (global) {
   "use strict";
 
-  function downloadSamples(samples, filenamePrefix = "llm-performance-tracker-samples") {
-    const date = new Date().toISOString().slice(0, 10);
-    const filename = `${filenamePrefix}-${date}.json`;
+  function detectBrowserLabel() {
+    const userAgent = String(global.navigator?.userAgent || "");
+
+    if (/Firefox\//i.test(userAgent)) {
+      return "firefox";
+    }
+    if (/Edg\//i.test(userAgent)) {
+      return "edge";
+    }
+    if (/Chrome\//i.test(userAgent)) {
+      return "chrome";
+    }
+
+    return "browser";
+  }
+
+  function buildExportTimestamp() {
+    return new Date()
+      .toISOString()
+      .replace(/\.\d{3}Z$/, "Z")
+      .replace(/:/g, "-");
+  }
+
+  function downloadSamples(samples, filenamePrefix = "llm-chat-benchmark-samples") {
+    const browserLabel = detectBrowserLabel();
+    const timestamp = buildExportTimestamp();
+    const filename = `${filenamePrefix}-${browserLabel}-${timestamp}.json`;
     const exportedSamples = samples.map((sample) => ({
       id: sample.id,
       sessionId: sample.sessionId,
