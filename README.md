@@ -53,6 +53,7 @@ Browser packaging remains per extension:
 
 - [Chrome-plugin-codex/scripts/package-cws.sh](/Users/rndm/Code/chatbot-perf/Chrome-plugin-codex/scripts/package-cws.sh)
 - [Firefox-plugin-codex/scripts/package-amo.sh](/Users/rndm/Code/chatbot-perf/Firefox-plugin-codex/scripts/package-amo.sh)
+- [docs/SMOKE_TESTS.md](/Users/rndm/Code/chatbot-perf/docs/SMOKE_TESTS.md): manual browser verification checklist
 
 ## Verification
 

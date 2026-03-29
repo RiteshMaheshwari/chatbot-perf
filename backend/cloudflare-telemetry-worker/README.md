@@ -2,7 +2,7 @@
 
 This scaffold is experimental and intentionally **out of scope** for the supported public client surface described in the repo root README.
 
-This Worker receives sanitized timing batches from the Firefox extension and stores them in Cloudflare D1.
+This Worker was originally built as a possible ingest path for sanitized timing batches from the browser extensions. The current shipped Chrome and Firefox extensions are local-only and do **not** use this backend.
 
 ## What this backend does
 
@@ -88,16 +88,8 @@ Expected response:
 {"ok":true,"service":"llm-performance-tracker"}
 ```
 
-## Extension setup
-
-1. Reload the temporary add-on in Firefox.
-2. Open the popup.
-3. Turn on `Telemetry Upload`.
-4. Paste the Worker endpoint URL.
-5. Click `Save`.
-6. Click `Upload Now` to flush the current queue.
-
 ## Notes
 
-- The extension sends sanitized metrics only. It does not upload `promptPreview`, page `url`, or page `title`.
+- The current shipped extensions do not upload anything to this backend.
+- If remote telemetry is reintroduced in a future release, the browser-side integration and privacy/docs story should be revalidated before using this scaffold.
 - The rate limiter is intentionally simple for the free tier. If abuse becomes real, move rate limiting into a Durable Object.
