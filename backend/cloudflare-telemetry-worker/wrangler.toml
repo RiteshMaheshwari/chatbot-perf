@@ -1,9 +1,0 @@
-name = "llm-performance-tracker"
-main = "src/index.js"
-compatibility_date = "2026-03-17"
-workers_dev = true
-
-[[d1_databases]]
-binding = "DB"
-database_name = "llm-performance-tracker"
-database_id = "REPLACE_WITH_D1_DATABASE_ID"

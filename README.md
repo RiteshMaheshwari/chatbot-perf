@@ -22,7 +22,6 @@ The supported public surface is:
 
 Out of scope for the first public pass:
 
-- [backend/cloudflare-telemetry-worker](./backend/cloudflare-telemetry-worker): experimental backend scaffold, not part of the supported client surface
 - `dist/`: generated release artifacts only, not source of truth
 - any future datasets, hosted services, or internal analysis tooling
 
@@ -34,15 +33,13 @@ Out of scope for the first public pass:
 - [assets/ttfw-diagrams](./assets/ttfw-diagrams): diagrams explaining TTFW, TTLW, WPS, and request/response flow
 - [docs](./docs): standalone explainer/dashboard HTML docs kept outside the extension packages
 - [fixtures/site-captures](./fixtures/site-captures): captured development fixtures such as Gemini markup samples
-- [backend/cloudflare-telemetry-worker](./backend/cloudflare-telemetry-worker): optional experimental ingest scaffold, intentionally unsupported for the public client release path
 
 ## Current Status
 
 - Browser extensions are local-only in their shipped configuration.
 - The current shared-source extraction uses a simple sync script instead of a bundler.
-- The backend scaffold is intentionally excluded from the supported public client story.
 - Packaging scripts exist per browser for store-ready artifacts.
-- The repository is MIT-licensed, while the hosted backend/data pipeline story remains intentionally separate.
+- The repository is MIT-licensed, while any future hosted backend/data pipeline remains intentionally separate from this repo.
 
 ## Quick Start
 
