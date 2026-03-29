@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Manual smoke-test checklist
+    url: https://github.com/RiteshMaheshwari/chatbot-perf/blob/main/docs/SMOKE_TESTS.md
+    about: Use this checklist before reporting a regression in extension behavior.
+  - name: Shared architecture overview
+    url: https://github.com/RiteshMaheshwari/chatbot-perf/blob/main/shared/README.md
+    about: Read this before reporting issues that may belong in the shared timing core instead of a browser-specific adapter.

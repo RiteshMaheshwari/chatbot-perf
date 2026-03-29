@@ -1,12 +1,17 @@
 # LLM Chat Benchmark
 
 LLM Chat Benchmark is a browser-based benchmarking project for measuring real user chat performance on AI chatbot web apps such as ChatGPT, Claude, Gemini, and Perplexity.
+It includes:
 
-This repo is being prepared for an eventual open-source release of the browser plugins and the shared timing library. It is **not open source yet** and remains **All Rights Reserved** for now. A future relicense may happen after the repo structure and public surface are finalized.
+- a Chrome / Edge extension
+- a Firefox extension
+- a shared browser-agnostic timing core used by both extensions
+
+The repository is open source under the [MIT License](./LICENSE).
 
 ## Supported Surface
 
-The public supported surface for this preparation pass is:
+The supported public surface is:
 
 - [extensions/chrome](./extensions/chrome): Chrome / Edge extension
 - [extensions/firefox](./extensions/firefox): Firefox extension
@@ -37,6 +42,7 @@ Out of scope for the first public pass:
 - The current shared-source extraction uses a simple sync script instead of a bundler.
 - The backend scaffold is intentionally excluded from the supported public client story.
 - Packaging scripts exist per browser for store-ready artifacts.
+- The repository is MIT-licensed, while the hosted backend/data pipeline story remains intentionally separate.
 
 ## Quick Start
 
@@ -82,6 +88,13 @@ For major repo changes, verify:
 - packaging scripts still build upload artifacts
 - manual browser smoke tests still pass before publishing
 
+## Reporting And Contributions
+
+- [CONTRIBUTING.md](./CONTRIBUTING.md): setup, boundaries, and issue guidance
+- [SECURITY.md](./SECURITY.md): how to report security-sensitive issues safely
+- [docs/SMOKE_TESTS.md](./docs/SMOKE_TESTS.md): manual smoke-test checklist for browser verification
+
 ## TODO
 
 - Add browser name and browser version to stored/exported benchmark samples in a future schema revision so cross-browser analysis is easier after import/export.
+- Revisit whether `Apache-2.0` would be a better long-term fit if the shared library becomes a larger standalone project with broader outside contribution.
