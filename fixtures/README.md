@@ -4,4 +4,4 @@ This directory holds narrow development fixtures used to validate site adapters 
 
 Current contents:
 
-- [site-captures/gemini-response.rtf](/Users/rndm/Code/chatbot-perf/fixtures/site-captures/gemini-response.rtf): captured Gemini chat markup sample used during adapter work
+- [site-captures/gemini-response.rtf](./site-captures/gemini-response.rtf): captured Gemini chat markup sample used during adapter work

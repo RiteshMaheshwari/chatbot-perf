@@ -18,7 +18,7 @@ This Worker was originally built as a possible ingest path for sanitized timing 
 1. Install dependencies:
 
 ```bash
-cd /Users/rndm/Code/chatbot-perf/backend/cloudflare-telemetry-worker
+cd backend/cloudflare-telemetry-worker
 npm install
 ```
 
@@ -34,7 +34,7 @@ npx wrangler login
 npx wrangler d1 create llm-performance-tracker
 ```
 
-Copy the returned `database_id` into [wrangler.toml](/Users/rndm/Code/chatbot-perf/backend/cloudflare-telemetry-worker/wrangler.toml) in the `database_id` field.
+Copy the returned `database_id` into [`wrangler.toml`](./wrangler.toml) in the `database_id` field.
 
 4. Apply the schema to the remote database:
 

@@ -37,7 +37,7 @@ The script writes a zip to `../dist/llm-chat-benchmark-firefox.zip` by default.
 
 - The extension does not transmit prompt text or any telemetry data.
 - The overlay, import flow, and raw-data viewer all work locally from extension storage.
-- The Firefox package includes a local-only privacy policy file at [PRIVACY_POLICY.md](/Users/rndm/Code/chatbot-perf/Firefox-plugin-codex/PRIVACY_POLICY.md).
+- The Firefox package includes a local-only privacy policy file at [PRIVACY_POLICY.md](./PRIVACY_POLICY.md).
 - If remote telemetry is added later, update the privacy policy and AMO listing before release.
 
 ## Submission Steps

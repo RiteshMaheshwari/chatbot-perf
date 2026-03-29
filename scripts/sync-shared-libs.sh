@@ -6,8 +6,8 @@ repo_dir="$(cd "$script_dir/.." && pwd)"
 shared_dir="$repo_dir/shared/lib"
 
 targets=(
-  "$repo_dir/Chrome-plugin-codex/lib"
-  "$repo_dir/Firefox-plugin-codex/lib"
+  "$repo_dir/extensions/chrome/lib"
+  "$repo_dir/extensions/firefox/lib"
 )
 
 for target in "${targets[@]}"; do

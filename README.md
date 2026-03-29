@@ -8,28 +8,28 @@ This repo is being prepared for an eventual open-source release of the browser p
 
 The public supported surface for this preparation pass is:
 
-- [Chrome-plugin-codex](/Users/rndm/Code/chatbot-perf/Chrome-plugin-codex): Chrome / Edge extension
-- [Firefox-plugin-codex](/Users/rndm/Code/chatbot-perf/Firefox-plugin-codex): Firefox extension
-- [shared](/Users/rndm/Code/chatbot-perf/shared): canonical shared timing and sample-transfer source
-- [assets](/Users/rndm/Code/chatbot-perf/assets): diagrams and explanatory assets directly related to the extensions
-- [docs](/Users/rndm/Code/chatbot-perf/docs): supporting explainer pages and repo-facing documentation
-- [fixtures](/Users/rndm/Code/chatbot-perf/fixtures): narrow development fixtures used to validate adapters and timing behavior
+- [extensions/chrome](./extensions/chrome): Chrome / Edge extension
+- [extensions/firefox](./extensions/firefox): Firefox extension
+- [shared](./shared): canonical shared timing and sample-transfer source
+- [assets](./assets): diagrams and explanatory assets directly related to the extensions
+- [docs](./docs): supporting explainer pages and repo-facing documentation
+- [fixtures](./fixtures): narrow development fixtures used to validate adapters and timing behavior
 
 Out of scope for the first public pass:
 
-- [backend/cloudflare-telemetry-worker](/Users/rndm/Code/chatbot-perf/backend/cloudflare-telemetry-worker): experimental backend scaffold, not part of the supported client surface
-- [dist](/Users/rndm/Code/chatbot-perf/dist): generated release artifacts only, not source of truth
+- [backend/cloudflare-telemetry-worker](./backend/cloudflare-telemetry-worker): experimental backend scaffold, not part of the supported client surface
+- `dist/`: generated release artifacts only, not source of truth
 - any future datasets, hosted services, or internal analysis tooling
 
 ## Repo Map
 
-- [Chrome-plugin-codex](/Users/rndm/Code/chatbot-perf/Chrome-plugin-codex): Chrome / Edge extension source, store docs, screenshots, and packaging script
-- [Firefox-plugin-codex](/Users/rndm/Code/chatbot-perf/Firefox-plugin-codex): Firefox extension source, AMO docs, screenshots, and packaging script
-- [shared](/Users/rndm/Code/chatbot-perf/shared): single canonical source for code duplicated into both browser extensions
-- [assets/ttfw-diagrams](/Users/rndm/Code/chatbot-perf/assets/ttfw-diagrams): diagrams explaining TTFW, TTLW, WPS, and request/response flow
-- [docs](/Users/rndm/Code/chatbot-perf/docs): standalone explainer/dashboard HTML docs kept outside the extension packages
-- [fixtures/site-captures](/Users/rndm/Code/chatbot-perf/fixtures/site-captures): captured development fixtures such as Gemini markup samples
-- [backend/cloudflare-telemetry-worker](/Users/rndm/Code/chatbot-perf/backend/cloudflare-telemetry-worker): optional experimental ingest scaffold, intentionally unsupported for the public client release path
+- [extensions/chrome](./extensions/chrome): Chrome / Edge extension source, store docs, screenshots, and packaging script
+- [extensions/firefox](./extensions/firefox): Firefox extension source, AMO docs, screenshots, and packaging script
+- [shared](./shared): single canonical source for code duplicated into both browser extensions
+- [assets/ttfw-diagrams](./assets/ttfw-diagrams): diagrams explaining TTFW, TTLW, WPS, and request/response flow
+- [docs](./docs): standalone explainer/dashboard HTML docs kept outside the extension packages
+- [fixtures/site-captures](./fixtures/site-captures): captured development fixtures such as Gemini markup samples
+- [backend/cloudflare-telemetry-worker](./backend/cloudflare-telemetry-worker): optional experimental ingest scaffold, intentionally unsupported for the public client release path
 
 ## Current Status
 
@@ -51,9 +51,9 @@ npm run verify:extensions
 
 Browser packaging remains per extension:
 
-- [Chrome-plugin-codex/scripts/package-cws.sh](/Users/rndm/Code/chatbot-perf/Chrome-plugin-codex/scripts/package-cws.sh)
-- [Firefox-plugin-codex/scripts/package-amo.sh](/Users/rndm/Code/chatbot-perf/Firefox-plugin-codex/scripts/package-amo.sh)
-- [docs/SMOKE_TESTS.md](/Users/rndm/Code/chatbot-perf/docs/SMOKE_TESTS.md): manual browser verification checklist
+- [extensions/chrome/scripts/package-cws.sh](./extensions/chrome/scripts/package-cws.sh)
+- [extensions/firefox/scripts/package-amo.sh](./extensions/firefox/scripts/package-amo.sh)
+- [docs/SMOKE_TESTS.md](./docs/SMOKE_TESTS.md): manual browser verification checklist
 
 ## Verification
 

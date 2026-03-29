@@ -4,6 +4,6 @@ This directory holds standalone documentation assets that are useful for explain
 
 Current contents:
 
-- [metrics-explainer.html](/Users/rndm/Code/chatbot-perf/docs/metrics-explainer.html)
-- [ttfw-dashboard.html](/Users/rndm/Code/chatbot-perf/docs/ttfw-dashboard.html)
-- [SMOKE_TESTS.md](/Users/rndm/Code/chatbot-perf/docs/SMOKE_TESTS.md)
+- [metrics-explainer.html](./metrics-explainer.html)
+- [ttfw-dashboard.html](./ttfw-dashboard.html)
+- [SMOKE_TESTS.md](./SMOKE_TESTS.md)

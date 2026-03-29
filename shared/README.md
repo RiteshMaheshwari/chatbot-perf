@@ -4,13 +4,13 @@ This directory is the canonical shared source for code that is intentionally dup
 
 Current shared modules:
 
-- [llm-timing-core.js](/Users/rndm/Code/chatbot-perf/shared/lib/llm-timing-core.js): browser-agnostic measurement lifecycle and metric computation
-- [sample-transfer.js](/Users/rndm/Code/chatbot-perf/shared/lib/sample-transfer.js): import/export normalization and local sample transfer helpers
+- [llm-timing-core.js](./lib/llm-timing-core.js): browser-agnostic measurement lifecycle and metric computation
+- [sample-transfer.js](./lib/sample-transfer.js): import/export normalization and local sample transfer helpers
 
 Generated extension copies live at:
 
-- [Chrome-plugin-codex/lib](/Users/rndm/Code/chatbot-perf/Chrome-plugin-codex/lib)
-- [Firefox-plugin-codex/lib](/Users/rndm/Code/chatbot-perf/Firefox-plugin-codex/lib)
+- [extensions/chrome/lib](../extensions/chrome/lib)
+- [extensions/firefox/lib](../extensions/firefox/lib)
 
 Use the root sync script before packaging browser builds:
 

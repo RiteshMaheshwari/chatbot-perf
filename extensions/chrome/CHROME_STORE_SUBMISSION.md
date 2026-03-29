@@ -10,7 +10,7 @@ Official docs:
 
 Privacy policy file for publishing:
 
-- [PRIVACY_POLICY.md](/Users/rndm/Code/chatbot-perf/Chrome-plugin-codex/PRIVACY_POLICY.md)
+- [PRIVACY_POLICY.md](./PRIVACY_POLICY.md)
 
 ## Current State
 

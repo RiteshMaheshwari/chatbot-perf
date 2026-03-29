@@ -4,7 +4,7 @@ Use this checklist after shared-source changes, release-prep changes, or any mod
 
 ## Chrome / Edge
 
-Load [Chrome-plugin-codex](/Users/rndm/Code/chatbot-perf/Chrome-plugin-codex) as an unpacked extension and verify:
+Load [extensions/chrome](../extensions/chrome) as an unpacked extension and verify:
 
 1. The extension popup opens and shows existing history.
 2. `Export` downloads a JSON file with browser name and timestamp in the filename.
@@ -19,7 +19,7 @@ Load [Chrome-plugin-codex](/Users/rndm/Code/chatbot-perf/Chrome-plugin-codex) as
 
 ## Firefox
 
-Load [Firefox-plugin-codex](/Users/rndm/Code/chatbot-perf/Firefox-plugin-codex) as a temporary add-on and verify:
+Load [extensions/firefox](../extensions/firefox) as a temporary add-on and verify:
 
 1. The extension popup opens and shows existing history.
 2. `Export` downloads a JSON file with browser name and timestamp in the filename.
