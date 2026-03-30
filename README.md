@@ -1,6 +1,7 @@
 # LLM Chat Benchmark
 
-LLM Chat Benchmark is a browser-based benchmarking project for measuring real user chat performance on AI chatbot web apps such as ChatGPT, Claude, Gemini, and Perplexity.
+LLM Chat Benchmark measures real user chat performance for AI chatbot web apps such as ChatGPT, Claude, Gemini, and Perplexity.
+
 It includes:
 
 - a Chrome / Edge extension
@@ -9,55 +10,89 @@ It includes:
 
 The repository is open source under the [MIT License](./LICENSE).
 
-## Supported Surface
+## What It Measures
 
-The supported public surface is:
+The extensions focus on the chat UI experience, not backend-only model timings.
 
-- [extensions/chrome](./extensions/chrome): Chrome / Edge extension
-- [extensions/firefox](./extensions/firefox): Firefox extension
-- [shared](./shared): canonical shared timing and sample-transfer source
-- [docs](./docs): supporting explainer pages and repo-facing documentation
+Core metrics include:
 
-Out of scope for the first public pass:
+- `TTFW` (time to first word)
+- `TTLW` (time to last word)
+- `WPS` (streaming words per second)
+- `longestStallMs`
+- response word count
+- prompt word count
 
-- `dist/`: generated release artifacts only, not source of truth
-- any future datasets, hosted services, or internal analysis tooling
+The project also captures enough context to compare runs across:
 
-## Repo Map
+- ChatGPT
+- Claude
+- Gemini
+- Perplexity
 
-- [extensions/chrome](./extensions/chrome): Chrome / Edge extension source, store docs, screenshots, and packaging script
-- [extensions/firefox](./extensions/firefox): Firefox extension source, AMO docs, screenshots, and packaging script
-- [shared](./shared): single canonical source for code duplicated into both browser extensions
-- [docs](./docs): standalone explainer/dashboard HTML docs kept outside the extension packages
+If you want a clearer walkthrough of what these metrics mean, read the hosted explainer:
 
-## Current Status
+- [Metrics Explainer](https://riteshmaheshwari.github.io/chatbot-perf/metrics-explainer.html)
 
-- Browser extensions are local-only in their shipped configuration.
-- The current shared-source extraction uses a simple sync script instead of a bundler.
-- Packaging scripts exist per browser for store-ready artifacts.
-- The repository is MIT-licensed, while any future hosted backend/data pipeline remains intentionally separate from this repo.
+## What The Code In This Repo Is For
 
-## Quick Start
+- [extensions/chrome](./extensions/chrome): Chrome / Edge extension source
+- [extensions/firefox](./extensions/firefox): Firefox extension source
+- [shared](./shared): canonical timing core and shared sample-transfer logic
+- [docs](./docs): hosted explainer and dashboard pages plus smoke-test docs
 
-1. Sync the shared library copies into both extensions.
-2. Run the shared checks and tests.
-3. Load either browser extension from the `extensions/` directory.
+This repo intentionally does **not** include a hosted telemetry backend or private dataset pipeline.
 
-```bash
-npm run sync:shared
-npm run check:shared
-npm run test:shared-core
-```
+## Install And Use
 
-For browser-specific packaging and smoke testing, see:
+### Chrome / Edge
 
+1. Open `chrome://extensions` or `edge://extensions`.
+2. Turn on `Developer mode`.
+3. Click `Load unpacked`.
+4. Select [extensions/chrome](./extensions/chrome).
+
+More details:
 - [extensions/chrome/README.md](./extensions/chrome/README.md)
+
+### Firefox
+
+1. Open `about:debugging`.
+2. Choose `This Firefox`.
+3. Click `Load Temporary Add-on...`.
+4. Select [manifest.json](./extensions/firefox/manifest.json).
+
+More details:
 - [extensions/firefox/README.md](./extensions/firefox/README.md)
-- [docs/SMOKE_TESTS.md](./docs/SMOKE_TESTS.md)
 
-## Development Commands
+### What You’ll See
 
-The repo uses Node's built-in tooling and simple shell scripts for verification.
+After loading the extension on a supported chatbot site, you get:
+
+- a floating in-page overlay with live status and top-level metrics
+- a popup dashboard with recent runs and summary stats
+- JSON export/import for restoring local history
+- a raw-data viewer for inspecting locally stored samples
+
+## Hosted Docs
+
+This repo includes two standalone docs pages:
+
+- [Metrics Explainer](./docs/metrics-explainer.html)
+- [Metric Dashboard](./docs/ttfw-dashboard.html)
+
+Once GitHub Pages is enabled for the `docs/` folder, these can also be hosted publicly from:
+
+- `/metrics-explainer.html`
+- `/ttfw-dashboard.html`
+
+A simple docs landing page is available at:
+
+- [docs/index.html](./docs/index.html)
+
+## Development
+
+From the repo root:
 
 ```bash
 npm run sync:shared
@@ -66,26 +101,19 @@ npm run test:shared-core
 npm run verify:extensions
 ```
 
-Browser packaging remains per extension:
+Packaging scripts:
 
 - [extensions/chrome/scripts/package-cws.sh](./extensions/chrome/scripts/package-cws.sh)
 - [extensions/firefox/scripts/package-amo.sh](./extensions/firefox/scripts/package-amo.sh)
-- [docs/SMOKE_TESTS.md](./docs/SMOKE_TESTS.md): manual browser verification checklist
 
-## Verification
+Manual smoke-test checklist:
 
-For major repo changes, verify:
+- [docs/SMOKE_TESTS.md](./docs/SMOKE_TESTS.md)
 
-- both extensions still pass syntax checks
-- shared-source sync produces identical generated copies in both browser packages
-- packaging scripts still build upload artifacts
-- manual browser smoke tests still pass before publishing
+## Contributing And Security
 
-## Reporting And Contributions
-
-- [CONTRIBUTING.md](./CONTRIBUTING.md): setup, boundaries, and issue guidance
-- [SECURITY.md](./SECURITY.md): how to report security-sensitive issues safely
-- [docs/SMOKE_TESTS.md](./docs/SMOKE_TESTS.md): manual smoke-test checklist for browser verification
+- [CONTRIBUTING.md](./CONTRIBUTING.md)
+- [SECURITY.md](./SECURITY.md)
 
 ## TODO
 
