@@ -41,8 +41,6 @@ If you want a clearer walkthrough of what these metrics mean, read the hosted ex
 - [shared](./shared): canonical timing core and shared sample-transfer logic
 - [docs](./docs): hosted explainer and dashboard pages plus smoke-test docs
 
-This repo intentionally does **not** include a hosted telemetry backend or private dataset pipeline.
-
 ## Install And Use
 
 ### Chrome / Edge
