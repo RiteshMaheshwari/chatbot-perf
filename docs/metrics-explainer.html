@@ -234,7 +234,120 @@
 </div>
 
 <!-- ══════════════════════════════════════════════════════════════════════
-     3. WPS vs E2E WPS
+     3. VS API-LEVEL METRICS
+═══════════════════════════════════════════════════════════════════════ -->
+<div class="section">
+  <p class="section-label">vs. standard API metrics</p>
+  <div style="background:#ffffff;border:1px solid #e2e8f0;border-radius:16px;padding:32px;margin-bottom:40px;box-shadow:0 1px 4px rgba(0,0,0,.06)">
+    <h2 style="font-size:1rem;font-weight:600;color:#1e293b;margin-bottom:8px">How these differ from TTFT, ITL, and TPS</h2>
+    <p style="font-size:.875rem;color:#475569;line-height:1.6;margin-bottom:28px">
+      The standard LLM performance vocabulary — <strong style="color:#0f172a">Time to First Token (TTFT)</strong>, <strong style="color:#0f172a">Inter-Token Latency (ITL)</strong>, and <strong style="color:#0f172a">Tokens Per Second (TPS)</strong> — measures throughput at the <em>infrastructure boundary</em>: the API endpoint, the model server, the network edge. The metrics on this page measure at the <em>rendering layer</em> inside the browser, capturing what the person in front of the screen actually perceives. These are Real User Metrics (RUM), not infrastructure metrics.
+    </p>
+
+    <!-- Comparison table -->
+    <div style="overflow-x:auto;margin-bottom:28px">
+      <table style="width:100%;border-collapse:collapse;font-size:.85rem">
+        <thead>
+          <tr style="border-bottom:2px solid #e2e8f0">
+            <th style="text-align:left;padding:10px 14px;color:#64748b;font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;font-weight:600">API / infra metric</th>
+            <th style="text-align:left;padding:10px 14px;color:#64748b;font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;font-weight:600">Real-user equivalent</th>
+            <th style="text-align:left;padding:10px 14px;color:#64748b;font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;font-weight:600">What the gap captures</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr style="border-bottom:1px solid #f1f5f9">
+            <td style="padding:13px 14px;vertical-align:top">
+              <span style="font-weight:700;color:#0f172a">TTFT</span>
+              <div style="color:#64748b;font-size:.78rem;margin-top:2px">Time to First Token</div>
+              <div style="color:#94a3b8;font-size:.75rem;margin-top:2px">Measured at the HTTP stream</div>
+            </td>
+            <td style="padding:13px 14px;vertical-align:top">
+              <span style="font-weight:700" class="c-ttfw">TTFW</span>
+              <div style="color:#64748b;font-size:.78rem;margin-top:2px">Time to First Word</div>
+              <div style="color:#94a3b8;font-size:.75rem;margin-top:2px">Measured when text appears on screen</div>
+            </td>
+            <td style="padding:13px 14px;vertical-align:top;color:#334155;line-height:1.55">
+              Chunk buffering, markdown parsing, React/DOM render cycles, and browser paint frames. A token arriving at the network layer is not the same as a word appearing in the UI. TTFW is always &ge; TTFT.
+            </td>
+          </tr>
+          <tr style="border-bottom:1px solid #f1f5f9">
+            <td style="padding:13px 14px;vertical-align:top">
+              <span style="font-weight:700;color:#0f172a">ITL</span>
+              <div style="color:#64748b;font-size:.78rem;margin-top:2px">Inter-Token Latency</div>
+              <div style="color:#94a3b8;font-size:.75rem;margin-top:2px">Avg. gap between successive tokens</div>
+            </td>
+            <td style="padding:13px 14px;vertical-align:top">
+              <span style="font-weight:700" class="c-stall">longestStallMs</span>
+              <div style="color:#64748b;font-size:.78rem;margin-top:2px">Worst-case freeze during streaming</div>
+              <div style="color:#94a3b8;font-size:.75rem;margin-top:2px">Measured between rendered word chunks</div>
+            </td>
+            <td style="padding:13px 14px;vertical-align:top;color:#334155;line-height:1.55">
+              ITL is an <em>average</em>; it masks the single long freeze that breaks perceived smoothness. A 20 ms average ITL with one 800 ms spike feels broken — but ITL alone won't tell you that. longestStallMs surfaces exactly that worst case.
+            </td>
+          </tr>
+          <tr style="border-bottom:1px solid #f1f5f9">
+            <td style="padding:13px 14px;vertical-align:top">
+              <span style="font-weight:700;color:#0f172a">TPS</span>
+              <div style="color:#64748b;font-size:.78rem;margin-top:2px">Tokens Per Second</div>
+              <div style="color:#94a3b8;font-size:.75rem;margin-top:2px">Model throughput at the API</div>
+            </td>
+            <td style="padding:13px 14px;vertical-align:top">
+              <span style="font-weight:700" class="c-wps">wordsPerSecond</span>
+              <div style="color:#64748b;font-size:.78rem;margin-top:2px">Visible words per second (streaming only)</div>
+              <div style="color:#94a3b8;font-size:.75rem;margin-top:2px">Measured in the rendering layer</div>
+            </td>
+            <td style="padding:13px 14px;vertical-align:top;color:#334155;line-height:1.55">
+              Tokens and words are not the same unit. On average ~1.3 tokens make one word, but code, URLs, and non-English text skew this heavily. WPS counts what the user reads. TPS also doesn't account for frontend buffering — the UI may batch multiple tokens into a single DOM update, making the visible rate lower than the raw token rate.
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:13px 14px;vertical-align:top">
+              <span style="font-weight:700;color:#0f172a">TPS (E2E variant)</span>
+              <div style="color:#64748b;font-size:.78rem;margin-top:2px">Sometimes: total tokens / total time</div>
+              <div style="color:#94a3b8;font-size:.75rem;margin-top:2px">Blended rate including TTFT wait</div>
+            </td>
+            <td style="padding:13px 14px;vertical-align:top">
+              <span style="font-weight:700" class="c-e2e">endToEndWordsPerSecond</span>
+              <div style="color:#64748b;font-size:.78rem;margin-top:2px">Words per second of total wait</div>
+              <div style="color:#94a3b8;font-size:.75rem;margin-top:2px">Penalises TTFW latency explicitly</div>
+            </td>
+            <td style="padding:13px 14px;vertical-align:top;color:#334155;line-height:1.55">
+              Same intent, but measured at the UI layer in words not tokens, making it directly interpretable by product teams without needing to know a model's tokenizer. The word unit also scales intuitively with response length as the user experiences it.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Key insight callouts -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px">
+
+      <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:18px 20px;border-left:3px solid #6366f1">
+        <div style="font-size:.7rem;text-transform:uppercase;letter-spacing:.08em;color:#64748b;font-weight:600;margin-bottom:6px">Measurement layer</div>
+        <div style="font-size:.875rem;color:#334155;line-height:1.55">TTFT and TPS are infrastructure signals — useful for model operators and SREs. TTFW and WPS are <strong style="color:#0f172a">product signals</strong> — useful for anyone making decisions about user experience.</div>
+      </div>
+
+      <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:18px 20px;border-left:3px solid #0d9488">
+        <div style="font-size:.7rem;text-transform:uppercase;letter-spacing:.08em;color:#64748b;font-weight:600;margin-bottom:6px">The rendering gap is real</div>
+        <div style="font-size:.875rem;color:#334155;line-height:1.55">A chatbot UI that re-renders on every token will feel faster than one that batches updates every 100 ms — even with identical TTFT and TPS. Only real-user measurement captures this difference.</div>
+      </div>
+
+      <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:18px 20px;border-left:3px solid #d97706">
+        <div style="font-size:.7rem;text-transform:uppercase;letter-spacing:.08em;color:#64748b;font-weight:600;margin-bottom:6px">Words, not tokens</div>
+        <div style="font-size:.875rem;color:#334155;line-height:1.55">Reporting in words makes metrics model-agnostic and human-readable. You don't need to know GPT-4's BPE tokenizer or Claude's vocabulary to compare "15 words/s vs 22 words/s" across providers.</div>
+      </div>
+
+      <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:18px 20px;border-left:3px solid #dc2626">
+        <div style="font-size:.7rem;text-transform:uppercase;letter-spacing:.08em;color:#64748b;font-weight:600;margin-bottom:6px">Averages hide jank</div>
+        <div style="font-size:.875rem;color:#334155;line-height:1.55">ITL is an average over all inter-token gaps. longestStallMs deliberately surfaces the <em>worst</em> gap, because a single long freeze is what users notice — not the median smoothness they never consciously register.</div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════
+     4. WPS vs E2E WPS
 ═══════════════════════════════════════════════════════════════════════ -->
 <div class="section">
   <p class="section-label">The key distinction</p>
