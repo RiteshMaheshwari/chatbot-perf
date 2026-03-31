@@ -14,6 +14,7 @@
     createMeasurementTracker,
     createSessionId,
     normalizeText,
+    reportableStallMs,
     stripMeasurementNoise,
     truncateText
   } = core;
@@ -215,10 +216,10 @@
     let longest = 0;
 
     for (let index = 1; index < events.length; index += 1) {
-      longest = Math.max(longest, Number(events[index].idleGapMs) || 0);
+      longest = Math.max(longest, reportableStallMs(events[index].idleGapMs));
     }
 
-    const currentIdleGap = Number(run.stallIdleMsSinceProgress) || 0;
+    const currentIdleGap = reportableStallMs(run.stallIdleMsSinceProgress);
     return Math.max(longest, currentIdleGap);
   }
 
@@ -529,6 +530,31 @@
     return Boolean(queryOne(SITE_CONFIG.streamingContentSelector, candidate));
   }
 
+  function shouldBlockStall(run, candidate, observation) {
+    if (!run?.firstWordAt) {
+      return Boolean(observation.generationActive || observation.candidateStreaming);
+    }
+
+    if (SITE !== "gemini") {
+      return false;
+    }
+
+    const visibleWordCount = Number(observation.visibleWordCount) || 0;
+    if (visibleWordCount === 0) {
+      return true;
+    }
+
+    const measurementRoot = getMeasurementRoot(candidate);
+    const visibleBusyIndicator = measurementRoot
+      ? queryAll(
+          "[aria-busy='true'], .thoughts-container:not(:empty), .avatar_spinner_animation[style*='visibility: visible']",
+          measurementRoot
+        ).some(isVisible)
+      : false;
+
+    return visibleBusyIndicator;
+  }
+
   function captureAssistantSnapshot() {
     return getAssistantContainers().map((element) => {
       const text = getMeasuredText(element);
@@ -808,10 +834,11 @@
 
     run.metadata.trackedElement = candidate;
 
-    const result = tracker.observe({
-      ...buildObservation(candidate),
-      generationActive: generationLooksActive()
-    });
+    const observation = buildObservation(candidate);
+    observation.generationActive = generationLooksActive();
+    observation.stallBlocked = shouldBlockStall(run, candidate, observation);
+
+    const result = tracker.observe(observation);
 
     if (result?.type === "complete") {
       void handleCompletedRun(result);

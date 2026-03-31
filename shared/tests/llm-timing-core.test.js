@@ -122,10 +122,113 @@ test("computes stall metrics from fixture progress events", () => {
   assert.equal(result.metrics.ttfwMs, 100);
   assert.equal(result.metrics.ttlwMs, 2600);
   assert.equal(result.metrics.wordCount, 6);
-  assert.equal(result.metrics.longestStallMs, 600);
+  assert.equal(result.metrics.longestStallMs, 0);
   assert.equal(result.metrics.stallCount500Ms, 1);
   assert.equal(result.metrics.stallCount1000Ms, 0);
-  assert.equal(result.metrics.p95InterChunkGapMs, 600);
+  assert.equal(result.metrics.p95InterChunkGapMs, 0);
+});
+
+test("ignores sub-threshold gaps for reported stall while preserving raw stall counts", () => {
+  const core = loadTimingCore();
+  const tracker = new core.MeasurementTracker({
+    completionSettleMs: 120,
+    hardTimeoutMs: 5000
+  });
+
+  tracker.startRun({
+    triggerType: "submit",
+    startedWallClock: 1000,
+    promptText: "Short pauses"
+  });
+
+  let result = tracker.observe({
+    now: 100,
+    totalWordCount: 1,
+    visibleWordCount: 1,
+    generationActive: false,
+    candidateStreaming: false,
+    stallBlocked: false,
+    candidateId: "turn-1"
+  });
+  assert.equal(result.type, "finishing");
+
+  result = tracker.observe({
+    now: 700,
+    totalWordCount: 3,
+    visibleWordCount: 3,
+    generationActive: false,
+    candidateStreaming: false,
+    stallBlocked: false,
+    candidateId: "turn-1"
+  });
+  assert.equal(result.type, "finishing");
+
+  result = tracker.observe({
+    now: 900,
+    totalWordCount: 3,
+    visibleWordCount: 3,
+    generationActive: false,
+    candidateStreaming: false,
+    stallBlocked: false,
+    candidateId: "turn-1"
+  });
+
+  assert.equal(result.type, "complete");
+  assert.equal(result.metrics.longestStallMs, 0);
+  assert.equal(result.metrics.stallCount500Ms, 1);
+  assert.equal(result.metrics.stallCount1000Ms, 0);
+  assert.equal(result.metrics.p95InterChunkGapMs, 0);
+});
+
+test("can accumulate stall while generation remains active", () => {
+  const core = loadTimingCore();
+  const tracker = new core.MeasurementTracker({
+    completionSettleMs: 120,
+    hardTimeoutMs: 5000
+  });
+
+  tracker.startRun({
+    triggerType: "submit",
+    startedWallClock: 1000,
+    promptText: "Explain Gemini stalls"
+  });
+
+  let result = tracker.observe({
+    now: 100,
+    totalWordCount: 1,
+    visibleWordCount: 1,
+    generationActive: true,
+    candidateStreaming: true,
+    stallBlocked: false,
+    candidateId: "turn-1"
+  });
+  assert.equal(result.type, "streaming");
+
+  result = tracker.observe({
+    now: 900,
+    totalWordCount: 3,
+    visibleWordCount: 3,
+    generationActive: true,
+    candidateStreaming: true,
+    stallBlocked: false,
+    candidateId: "turn-1"
+  });
+  assert.equal(result.type, "streaming");
+
+  result = tracker.observe({
+    now: 1100,
+    totalWordCount: 3,
+    visibleWordCount: 3,
+    generationActive: false,
+    candidateStreaming: false,
+    stallBlocked: false,
+    candidateId: "turn-1"
+  });
+
+  assert.equal(result.type, "complete");
+  assert.equal(result.metrics.longestStallMs, 800);
+  assert.equal(result.metrics.stallCount500Ms, 1);
+  assert.equal(result.metrics.p95InterChunkGapMs, 800);
 });
 
 test("resets timed-out runs", () => {

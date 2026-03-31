@@ -4,6 +4,7 @@
   const DEFAULT_NOISE_PATTERNS = [
     /\b(ChatGPT said:|You said:|Searching the web|Working)\b/gi
   ];
+  const MIN_REPORTABLE_STALL_MS = 750;
 
   function nowMs() {
     return typeof performance !== "undefined" && typeof performance.now === "function"
@@ -49,6 +50,11 @@
     return values[index];
   }
 
+  function reportableStallMs(value) {
+    const rounded = Math.max(0, Math.round(Number(value) || 0));
+    return rounded >= MIN_REPORTABLE_STALL_MS ? rounded : 0;
+  }
+
   function buildProgressMetrics(run) {
     const events = Array.isArray(run.visibleProgressEvents) ? run.visibleProgressEvents : [];
     if (events.length < 2) {
@@ -60,17 +66,23 @@
       };
     }
 
-    const gaps = [];
+    const rawGaps = [];
+    const reportableGaps = [];
     for (let index = 1; index < events.length; index += 1) {
-      gaps.push(Math.max(0, Math.round(events[index].idleGapMs || 0)));
+      const rawGap = Math.max(0, Math.round(events[index].idleGapMs || 0));
+      rawGaps.push(rawGap);
+      const reportableGap = reportableStallMs(rawGap);
+      if (reportableGap > 0) {
+        reportableGaps.push(reportableGap);
+      }
     }
 
-    const sortedGaps = [...gaps].sort((left, right) => left - right);
+    const sortedReportableGaps = [...reportableGaps].sort((left, right) => left - right);
     return {
-      longestStallMs: Math.max(...gaps),
-      stallCount500Ms: gaps.filter((gap) => gap >= 500).length,
-      stallCount1000Ms: gaps.filter((gap) => gap >= 1000).length,
-      p95InterChunkGapMs: percentileFromSorted(sortedGaps, 95)
+      longestStallMs: reportableGaps.length ? Math.max(...reportableGaps) : 0,
+      stallCount500Ms: rawGaps.filter((gap) => gap >= 500).length,
+      stallCount1000Ms: rawGaps.filter((gap) => gap >= 1000).length,
+      p95InterChunkGapMs: percentileFromSorted(sortedReportableGaps, 95)
     };
   }
 
@@ -211,6 +223,9 @@
       const generationActive = Boolean(observation.generationActive);
       const candidateStreaming = Boolean(observation.candidateStreaming);
       const isActive = generationActive || candidateStreaming;
+      const stallBlocked = observation.stallBlocked === undefined
+        ? isActive
+        : Boolean(observation.stallBlocked);
 
       if (observation.candidateId) {
         run.trackedCandidateId = observation.candidateId;
@@ -218,7 +233,7 @@
 
       run.visibleWordCount = visibleWordCount;
 
-      if (run.firstWordAt && observedAt > run.lastObservationAt && !isActive) {
+      if (run.firstWordAt && observedAt > run.lastObservationAt && !stallBlocked) {
         run.stallIdleMsSinceProgress += observedAt - run.lastObservationAt;
       }
       run.lastObservationAt = observedAt;
@@ -292,6 +307,7 @@
     createMeasurementTracker,
     createSessionId,
     normalizeText,
+    reportableStallMs,
     stripMeasurementNoise,
     truncateText,
     wordMatches
