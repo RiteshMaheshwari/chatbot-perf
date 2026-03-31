@@ -259,6 +259,99 @@
     .detail-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; flex-wrap: wrap; margin-bottom: 32px; }
     .detail-header .left h2 { font-size: 1.3rem; font-weight: 700; color: var(--detail-h2); margin-bottom: 4px; }
     .detail-header .left .sub { color: var(--dim); font-size: .88rem; }
+
+    /* ══════════════════════════════════════════════════════
+       PER-SITE CARDS
+    ══════════════════════════════════════════════════════ */
+    .site-cards-section { margin: 0 auto 44px; max-width: 960px; }
+    .site-cards-label {
+      display: block; margin-bottom: 14px;
+      font-size: .68rem; text-transform: uppercase; letter-spacing: .1em; color: var(--snap-tick);
+    }
+    .site-cards-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 16px;
+    }
+    .site-card {
+      background: var(--snap-bg);
+      border: 1px solid var(--snap-border);
+      border-radius: 16px; overflow: hidden;
+      box-shadow: 0 6px 20px rgba(0,0,0,.15);
+      transition: background .25s, border-color .25s;
+    }
+    .sc-header {
+      display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;
+      padding: 14px 18px 12px;
+      border-bottom: 1px solid var(--divider);
+    }
+    .sc-site-name {
+      display: flex; align-items: center; gap: 9px;
+      font-size: 1.1rem; font-weight: 800; letter-spacing: -.02em;
+    }
+    .sc-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    .sc-right { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+    .sc-n {
+      font-size: .68rem; color: var(--snap-tick);
+      background: var(--pill-bg); border: 1px solid var(--divider);
+      padding: 2px 8px; border-radius: 20px;
+    }
+    .sc-ranks { display: flex; gap: 4px; flex-wrap: wrap; }
+    .sc-rank-badge {
+      font-size: .62rem; padding: 2px 7px; border-radius: 20px;
+      background: rgba(251,191,36,.08); border: 1px solid rgba(251,191,36,.22); color: #fbbf24;
+      white-space: nowrap;
+    }
+    .sc-body { padding: 18px 18px 0; }
+    /* Hero TTFW */
+    .sc-hero { text-align: center; margin-bottom: 18px; }
+    .sc-hero-val { font-size: 2.6rem; font-weight: 800; letter-spacing: -.04em; line-height: 1; }
+    .sc-hero-label { font-size: .63rem; color: var(--snap-tick); text-transform: uppercase; letter-spacing: .07em; margin-top: 5px; }
+    /* TTFW range bar */
+    .sc-range { margin-bottom: 18px; }
+    .sc-range-track {
+      position: relative; height: 6px;
+      background: var(--divider); border-radius: 3px;
+      margin-bottom: 7px;
+    }
+    .sc-range-fill { position: absolute; top: 0; height: 100%; border-radius: 3px; opacity: .35; }
+    .sc-range-avg  {
+      position: absolute; width: 8px; height: 8px; border-radius: 50%;
+      top: -1px; transform: translateX(-50%); opacity: .5;
+    }
+    .sc-range-med  {
+      position: absolute; width: 14px; height: 14px; border-radius: 50%;
+      top: -4px; transform: translateX(-50%);
+      border: 2.5px solid var(--snap-bg);
+    }
+    .sc-range-labels {
+      display: flex; justify-content: space-between;
+      font-size: .63rem; color: var(--snap-tick);
+    }
+    .sc-range-labels span:nth-child(2) { text-align: center; }
+    .sc-range-labels span:last-child   { text-align: right; }
+    /* Secondary stats strip */
+    .sc-stats {
+      display: grid; grid-template-columns: 1fr 1fr 1fr;
+      border-top: 1px solid var(--divider);
+      margin: 0 -18px;
+    }
+    .sc-stat { padding: 12px 10px; border-right: 1px solid var(--divider); text-align: center; }
+    .sc-stat:last-child { border-right: none; }
+    .sc-stat-val { font-size: .95rem; font-weight: 700; line-height: 1; margin-bottom: 4px; }
+    .sc-stat-label { font-size: .58rem; color: var(--snap-tick); text-transform: uppercase; letter-spacing: .05em; }
+    /* Overall score chip at bottom */
+    .sc-footer {
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      padding: 9px 18px;
+      border-top: 1px solid var(--divider);
+      font-size: .72rem; color: var(--snap-tick);
+    }
+    .sc-score-chip {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 30px; height: 30px; border-radius: 50%;
+      font-weight: 800; font-size: .85rem;
+    }
   </style>
 </head>
 <body>
@@ -306,6 +399,14 @@
   </div>
 
   <div class="snap-footer" id="snap-footer">Measured with chatbot-perf browser extension · #AIBenchmark</div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════
+     PER-SITE CARDS  — screenshot individual cards
+════════════════════════════════════════════════════════════════ -->
+<div class="site-cards-section">
+  <span class="site-cards-label">Per-LLM Breakdown — screenshot individual cards</span>
+  <div class="site-cards-grid" id="site-cards-grid"></div>
 </div>
 
 <!-- ════════════════════════════════════════════════════════════════
@@ -637,14 +738,14 @@ function render(raw) {
   setStrip('ttfw-winner', ttfwWinner, Math.min(...ttfwVals), ' ms');
   setStrip('wps-winner',  wpsWinner,  Math.max(...wpsVals),  ' w/s');
 
-  // Overall scoring — delta-weighted, 0–100
-  const ttfwMin_ = Math.min(...SITES.map(s=>stats[s].ttfw.avg));
-  const ttfwMax_ = Math.max(...SITES.map(s=>stats[s].ttfw.avg));
+  // Overall scoring — delta-weighted, 0–100 (uses median TTFW, avg WPS)
+  const ttfwMin_ = Math.min(...SITES.map(s=>stats[s].ttfw.med));
+  const ttfwMax_ = Math.max(...SITES.map(s=>stats[s].ttfw.med));
   const wpsMin_  = Math.min(...SITES.map(s=>stats[s].wps.avg));
   const wpsMax_  = Math.max(...SITES.map(s=>stats[s].wps.avg));
   const scores = {};
   SITES.forEach(s => {
-    const tScore = ttfwMax_===ttfwMin_ ? 0.5 : (ttfwMax_ - stats[s].ttfw.avg) / (ttfwMax_ - ttfwMin_);
+    const tScore = ttfwMax_===ttfwMin_ ? 0.5 : (ttfwMax_ - stats[s].ttfw.med) / (ttfwMax_ - ttfwMin_);
     const wScore = wpsMax_ ===wpsMin_  ? 0.5 : (stats[s].wps.avg - wpsMin_)   / (wpsMax_  - wpsMin_);
     scores[s] = Math.round((tScore + wScore) * 50);
   });
@@ -655,14 +756,14 @@ function render(raw) {
   document.getElementById('winner-name').textContent = cap(overallWinner);
   document.getElementById('winner-name').style.color = owColor;
   const ow = stats[overallWinner];
-  document.getElementById('winner-sub').textContent = `${r1(ow.ttfw.avg)}ms TTFW · ${r1(ow.wps.avg)} w/s`;
+  document.getElementById('winner-sub').textContent = `${r1(ow.ttfw.med)}ms TTFW median · ${r1(ow.wps.avg)} w/s`;
 
   const medals = ['🥇','🥈','🥉','4️⃣','5️⃣'];
   const nonWinnerColor = isLight() ? '#475569' : '#94a3b8';
   document.getElementById('score-table').innerHTML = `
     <thead><tr>
       <th></th><th>Site</th>
-      <th class="r">n</th><th class="r">TTFW avg</th><th class="r">WPS avg</th><th class="r">Score</th>
+      <th class="r">n</th><th class="r">TTFW median</th><th class="r">WPS avg</th><th class="r">Score</th>
     </tr></thead><tbody>
     ${ranked.map((s, rank) => {
       const st = stats[s];
@@ -676,7 +777,7 @@ function render(raw) {
           <span style="color:${rank===0?c:nonWinnerColor};font-weight:${rank===0?700:500}">${cap(s)}</span>
         </span></td>
         <td class="r val-m">${st.n}</td>
-        <td class="r ${tw}">${r1(st.ttfw.avg)} ms</td>
+        <td class="r ${tw}">${r1(st.ttfw.med)} ms</td>
         <td class="r ${ww}">${r1(st.wps.avg)} w/s</td>
         <td class="r"><span class="score-num ${sc}">${scores[s]}</span></td>
       </tr>`;
@@ -685,7 +786,70 @@ function render(raw) {
 
   const tags = SITES.map(s=>'#'+cap(s)).join(' ');
   document.getElementById('snap-footer').textContent =
-    `Measured with chatbot-perf browser extension · ${tags} #AIBenchmark`;
+    `Measured with LLM Chat Benchmark browser extension · ${tags} #AIBenchmark`;
+
+  // ── PER-SITE CARDS ──────────────────────────────────────────────────────
+  const scStallSites = SITES.filter(s => stats[s].stall);
+  const globalTtfwMin = Math.min(...SITES.map(s => stats[s].ttfw.min));
+  const globalTtfwMax = Math.max(...SITES.map(s => stats[s].ttfw.max));
+  const globalRange   = globalTtfwMax - globalTtfwMin || 1;
+  const barPct = v => ((v - globalTtfwMin) / globalRange * 100).toFixed(1) + '%';
+
+  document.getElementById('site-cards-grid').innerHTML = SITES.map(s => {
+    const st = stats[s];
+    const c  = colorFor(s).color;
+
+    const fillLeft  = barPct(st.ttfw.min);
+    const fillWidth = ((st.ttfw.max - st.ttfw.min) / globalRange * 100).toFixed(1) + '%';
+    const avgLeft   = barPct(st.ttfw.avg);
+    const medLeft   = barPct(st.ttfw.med);
+
+    const ms  = v => v == null ? '—' : Math.round(v).toLocaleString();
+    const wps = v => v == null ? '—' : r1(v);
+
+    return `
+    <div class="site-card">
+      <div class="sc-header">
+        <div class="sc-site-name">
+          <span class="sc-dot" style="background:${c}"></span>
+          <span style="color:${c}">${cap(s)}</span>
+        </div>
+        <span class="sc-n">n=${st.n}</span>
+      </div>
+      <div class="sc-body">
+        <div class="sc-hero">
+          <div class="sc-hero-val" style="color:${c}">${ms(st.ttfw.med)} ms</div>
+          <div class="sc-hero-label">Median Time to First Word</div>
+        </div>
+        <div class="sc-range">
+          <div class="sc-range-track">
+            <div class="sc-range-fill" style="left:${fillLeft};width:${fillWidth};background:${c}"></div>
+            <div class="sc-range-avg"  style="left:${avgLeft};background:${c}"></div>
+            <div class="sc-range-med"  style="left:${medLeft};background:${c}"></div>
+          </div>
+          <div class="sc-range-labels">
+            <span>${ms(st.ttfw.min)} min</span>
+            <span>${ms(st.ttfw.avg)} avg</span>
+            <span>${ms(st.ttfw.max)} max</span>
+          </div>
+        </div>
+        <div class="sc-stats">
+          <div class="sc-stat">
+            <div class="sc-stat-val" style="color:${c}">${wps(st.wps.avg)}</div>
+            <div class="sc-stat-label">⚡ WPS</div>
+          </div>
+          <div class="sc-stat">
+            <div class="sc-stat-val">${wps(st.e2e.avg)}</div>
+            <div class="sc-stat-label">🔄 E2E WPS</div>
+          </div>
+          <div class="sc-stat">
+            <div class="sc-stat-val">${st.stall ? ms(st.stall.med) + ' ms' : '—'}</div>
+            <div class="sc-stat-label">⏸ Median Stall</div>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
 
   // ── DETAILED CHARTS ─────────────────────────────────────────────────────
   const G = tc().grid;
