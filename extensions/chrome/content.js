@@ -496,7 +496,15 @@
       return "";
     }
 
-    const walker = document.createTreeWalker(measurementRoot, NodeFilter.SHOW_TEXT);
+    return getVisibleTextFromRoot(measurementRoot);
+  }
+
+  function getVisibleTextFromRoot(root) {
+    if (!root) {
+      return "";
+    }
+
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
     const parts = [];
 
     let currentNode = walker.nextNode();
@@ -506,7 +514,7 @@
         parent &&
         normalizeText(currentNode.textContent).length > 0 &&
         isVisible(parent) &&
-        isElementActuallyVisible(parent, measurementRoot) &&
+        isElementActuallyVisible(parent, root) &&
         hasVisibleTextRect(currentNode)
       ) {
         parts.push(currentNode.textContent || "");
@@ -655,7 +663,7 @@
     return null;
   }
 
-  function buildObservation(candidate) {
+  function buildObservation(run, candidate) {
     const text = getMeasuredText(candidate);
     const visibleText = getVisibleMeasuredText(candidate);
 
@@ -834,7 +842,7 @@
 
     run.metadata.trackedElement = candidate;
 
-    const observation = buildObservation(candidate);
+    const observation = buildObservation(run, candidate);
     observation.generationActive = generationLooksActive();
     observation.stallBlocked = shouldBlockStall(run, candidate, observation);
 

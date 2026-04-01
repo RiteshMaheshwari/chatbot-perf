@@ -21,6 +21,8 @@
             <p id="status-message" class="subtle">Loading...</p>
           </div>
           <div class="actions">
+            <button id="select-all-button" class="secondary-button" type="button">Select All</button>
+            <button id="delete-selected-button" class="danger-button" type="button" disabled>Delete Selected</button>
             <button id="refresh-button" class="primary-button" type="button">Refresh</button>
             <button id="copy-button" class="secondary-button" type="button">Copy JSON</button>
           </div>
@@ -39,6 +41,18 @@
             <span class="detail-label">Last updated</span>
             <strong id="updated-at" class="detail-value">-</strong>
           </div>
+          <div>
+            <span class="detail-label">Selected</span>
+            <strong id="selected-count" class="detail-value">0</strong>
+          </div>
+        </div>
+
+        <div class="selection-panel">
+          <div class="selection-head">
+            <h3>Sample List</h3>
+            <p class="subtle selection-sub">Select one or more stored samples to delete them locally.</p>
+          </div>
+          <div id="sample-list" class="sample-list" aria-label="Stored sample list"></div>
         </div>
 
         <pre id="raw-output" class="raw-output" aria-label="Raw stored samples"></pre>

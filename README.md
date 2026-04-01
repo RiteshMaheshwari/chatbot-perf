@@ -116,4 +116,3 @@ Manual smoke-test checklist:
 ## TODO
 
 - Add browser name and browser version to stored/exported benchmark samples in a future schema revision so cross-browser analysis is easier after import/export.
-- Revisit whether `Apache-2.0` would be a better long-term fit if the shared library becomes a larger standalone project with broader outside contribution.

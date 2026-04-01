@@ -220,6 +220,9 @@
       const visibleWordCount = Number.isFinite(observation.visibleWordCount)
         ? observation.visibleWordCount
         : 0;
+      const firstWordDetected = observation.firstWordDetected === undefined
+        ? visibleWordCount > 0
+        : Boolean(observation.firstWordDetected);
       const generationActive = Boolean(observation.generationActive);
       const candidateStreaming = Boolean(observation.candidateStreaming);
       const isActive = generationActive || candidateStreaming;
@@ -261,9 +264,11 @@
         run.modelSlug = observation.modelSlug;
       }
 
-      if (!run.firstWordAt && visibleWordCount > 0) {
+      if (!run.firstWordAt && firstWordDetected) {
         run.firstWordAt = observedAt;
-        run.finalWordCount = visibleWordCount;
+        if (visibleWordCount > 0) {
+          run.finalWordCount = visibleWordCount;
+        }
         run.lastContentChangeAt = observedAt;
       }
 

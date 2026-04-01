@@ -47,6 +47,7 @@ body {
 
 h1,
 h2,
+h3,
 p {
   margin: 0;
 }
@@ -100,7 +101,8 @@ h2 {
 }
 
 .primary-button,
-.secondary-button {
+.secondary-button,
+.danger-button {
   appearance: none;
   align-items: center;
   border: 0;
@@ -124,6 +126,92 @@ h2 {
 .secondary-button {
   background: rgba(31, 147, 255, 0.12);
   color: #0e5fad;
+}
+
+.danger-button {
+  background: rgba(194, 50, 73, 0.12);
+  color: #9d1530;
+}
+
+.primary-button:disabled,
+.secondary-button:disabled,
+.danger-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.selection-panel {
+  margin-top: 18px;
+}
+
+.selection-head {
+  align-items: baseline;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.selection-sub {
+  margin-top: 0;
+}
+
+.sample-list {
+  background: rgba(21, 32, 51, 0.04);
+  border-radius: 16px;
+  margin-top: 12px;
+  max-height: 260px;
+  overflow: auto;
+  padding: 8px;
+}
+
+.sample-list.is-empty {
+  color: #5f738b;
+  font-size: 14px;
+  padding: 14px 12px;
+}
+
+.sample-row {
+  align-items: flex-start;
+  border-radius: 12px;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: auto 1fr auto;
+  padding: 10px 12px;
+}
+
+.sample-row + .sample-row {
+  margin-top: 6px;
+}
+
+.sample-row:hover {
+  background: rgba(255, 255, 255, 0.62);
+}
+
+.sample-row input {
+  margin-top: 4px;
+}
+
+.sample-meta {
+  min-width: 0;
+}
+
+.sample-title {
+  color: #152033;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.sample-subtitle,
+.sample-value {
+  color: #5f738b;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.sample-value {
+  text-align: right;
+  white-space: nowrap;
 }
 
 .raw-output {
